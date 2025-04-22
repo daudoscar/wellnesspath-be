@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"syncspend/config"
-	"syncspend/models"
+	"wellnesspath/config"
+	"wellnesspath/models"
 )
 
 type AuthRepository struct{}

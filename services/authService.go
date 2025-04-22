@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"syncspend/dto"
-	"syncspend/helpers"
-	"syncspend/models"
-	"syncspend/repositories"
+	"wellnesspath/dto"
+	"wellnesspath/helpers"
+	"wellnesspath/models"
+	"wellnesspath/repositories"
 )
 
 type AuthService struct{}

@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"syncspend/config"
-	"syncspend/models"
+	"wellnesspath/config"
+	"wellnesspath/models"
 )
 
 func GetUserByID(userID uint64) (*models.User, error) {

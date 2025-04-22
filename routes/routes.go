@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"syncspend/controllers"
-	"syncspend/middleware"
+	"wellnesspath/controllers"
+	"wellnesspath/middleware"
 
 	"github.com/gin-gonic/gin"
 )

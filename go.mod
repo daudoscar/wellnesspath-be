@@ -1,4 +1,4 @@
-module syncspend
+module wellnesspath
 
 go 1.23.2
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"syncspend/models"
+	"wellnesspath/models"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

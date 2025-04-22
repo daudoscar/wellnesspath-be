@@ -2,8 +2,8 @@ package main
 
 import (
 	"log"
-	"syncspend/config"
-	"syncspend/routes"
+	"wellnesspath/config"
+	"wellnesspath/routes"
 )
 
 func main() {

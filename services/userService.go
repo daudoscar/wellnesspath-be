@@ -3,9 +3,9 @@ package services
 import (
 	"errors"
 
-	"syncspend/dto"
-	"syncspend/helpers"
-	"syncspend/repositories"
+	"wellnesspath/dto"
+	"wellnesspath/helpers"
+	"wellnesspath/repositories"
 
 	"golang.org/x/crypto/bcrypt"
 )

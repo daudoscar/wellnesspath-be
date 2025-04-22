@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"syncspend/dto"
 	"syncspend/helpers"
 	"syncspend/services"
+	"wellnesspath/dto"
 
 	"github.com/gin-gonic/gin"
 )

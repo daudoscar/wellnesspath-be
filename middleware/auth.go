@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
-	"syncspend/helpers"
+	"wellnesspath/helpers"
 
 	"github.com/gin-gonic/gin"
 )

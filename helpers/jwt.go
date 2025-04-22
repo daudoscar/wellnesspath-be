@@ -1,8 +1,8 @@
 package helpers
 
 import (
-	"syncspend/config"
 	"time"
+	"wellnesspath/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )
