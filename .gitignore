@@ -1,0 +1,22 @@
+# Binaries for programs and apps
+*.exe
+*.out
+*.dll
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# IDE files
+.vscode/
+.idea/
+
+# Node modules (if applicable)
+node_modules/
+
