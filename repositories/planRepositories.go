@@ -20,7 +20,7 @@ func CreateWorkoutPlanExercise(ex *models.WorkoutPlanExercise) error {
 
 func GetAllWorkoutPlansByUserID(userID uint64) ([]models.WorkoutPlan, error) {
 	var plans []models.WorkoutPlan
-	err := config.DB.Where("user_id = ? AND is_deleted = false", userID).Find(&plans).Error
+	err := config.DB.Where("user_id = ? AND is_deleted = ?", userID, false).Find(&plans).Error
 	return plans, err
 }
 
@@ -28,7 +28,7 @@ func GetWorkoutPlanWithDetails(planID uint64) (models.WorkoutPlan, error) {
 	var plan models.WorkoutPlan
 	err := config.DB.
 		Preload("Days.Exercises").
-		Where("id = ? AND is_deleted = false", planID).
+		Where("id = ? AND is_deleted = ?", planID, false).
 		First(&plan).Error
 	return plan, err
 }
@@ -37,14 +37,13 @@ func GetExercisesByGoalAndEquipment(goal string, equipmentList []string) ([]mode
 	var exercises []models.Exercise
 
 	// Build base query
-	query := config.DB.Where("goal_tag = ? AND is_deleted = false", goal)
+	query := config.DB.Where("goal_tag = ? AND is_deleted = ?", goal, false)
 
 	// Apply equipment filtering
 	if len(equipmentList) > 0 {
 		query = query.Where(buildEquipmentCondition(equipmentList))
 	}
 
-	// Run query
 	err := query.Find(&exercises).Error
 	return exercises, err
 }

@@ -6,7 +6,7 @@ import (
 	"log"
 	"wellnesspath/models"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 )
 
@@ -17,15 +17,16 @@ func ConnectDatabase() {
 		LoadConfig()
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	// SQL Server DSN format
+	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
 		ENV.DBUser, ENV.DBPassword, ENV.DBHost, ENV.DBPort, ENV.DBName)
 
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
-	log.Println("Database connection successful")
+	log.Println("✅ Database connection successful")
 
 	err = DB.AutoMigrate(
 		&models.User{},
@@ -38,7 +39,7 @@ func ConnectDatabase() {
 	if err != nil {
 		log.Fatalf("Failed to migrate database tables: %v", err)
 	}
-	log.Println("Database tables migrated successfully")
+	log.Println("✅ Database tables migrated successfully")
 
 	err = TestBlobStorageConnection()
 	if err != nil {
@@ -60,6 +61,6 @@ func TestBlobStorageConnection() error {
 		}
 	}
 
-	log.Println("Azure Blob Storage connection successful.")
+	log.Println("✅ Azure Blob Storage connection successful.")
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 
 func GetProfileByUserID(userID uint64) (*models.Profile, error) {
 	var profile models.Profile
-	if err := config.DB.Where("user_id = ? AND is_deleted = false", userID).First(&profile).Error; err != nil {
+	if err := config.DB.Where("user_id = ? AND is_deleted = ?", userID, false).First(&profile).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, gorm.ErrRecordNotFound
 		}

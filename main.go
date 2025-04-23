@@ -4,6 +4,7 @@ import (
 	"log"
 	"wellnesspath/config"
 	"wellnesspath/routes"
+	// seeder "wellnesspath/seeders"
 )
 
 func main() {
