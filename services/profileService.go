@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"wellnesspath/dto"
 	"wellnesspath/helpers"
 	"wellnesspath/models"
@@ -30,6 +31,22 @@ func (s *ProfileService) GetProfile(userID uint64) (dto.ProfileResponseDTO, erro
 }
 
 func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO) error {
+	if !helpers.IsValidSplitType(input.SplitType) {
+		return errors.New("invalid split type")
+	}
+	if !helpers.IsValidGoal(input.Goal) {
+		return errors.New("invalid goal")
+	}
+	if !helpers.IsValidIntensity(input.Intensity) {
+		return errors.New("invalid intensity")
+	}
+	if !helpers.IsValidBMICategory(input.BMICategory) {
+		return errors.New("invalid BMI category")
+	}
+	if !helpers.IsValidEquipmentList(input.Equipment) {
+		return errors.New("invalid equipment list")
+	}
+
 	equipmentJSON, err := helpers.EncodeEquipment(input.Equipment)
 	if err != nil {
 		return err

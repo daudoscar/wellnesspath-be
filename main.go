@@ -16,6 +16,10 @@ func main() {
 	// Initialize router
 	router := routes.SetupRouter()
 
+	// if err := seeder.SeedExercisesFromAzure(); err != nil {
+	// 	log.Fatal("Seeding failed:", err)
+	// }
+
 	// Start the server using the loaded ADDR and PORT
 	log.Printf("Server is running on %s:%s", config.ENV.Addr, config.ENV.Port)
 	router.Run(config.ENV.Addr + ":" + config.ENV.Port)

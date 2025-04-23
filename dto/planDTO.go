@@ -1,12 +1,12 @@
 package dto
 
 type FullPlanOutput struct {
-	WorkoutPlan    []WorkoutDay        `json:"workoutPlan"`
-	Schedule       []ScheduledExercise `json:"schedule,omitempty"` // optional future use
-	BMIInfo        BMIInfo             `json:"bmiInfo"`
-	CaloriesBurned CaloriesBurned      `json:"caloriesBurned"`
-	NutritionPlan  NutritionPlan       `json:"nutritionPlan"`
-	TrainingAdvice string              `json:"trainingAdvice"`
+	WorkoutPlan    []WorkoutDay                 `json:"workoutPlan"`
+	Schedule       []ScheduledExercise          `json:"schedule,omitempty"` // optional future use
+	BMIInfo        BMIInfo                      `json:"bmiInfo"`
+	CaloriesBurned CaloriesBurned               `json:"caloriesBurned"`
+	NutritionPlan  DailyNutritionRecommendation `json:"nutritionPlan"`
+	TrainingAdvice string                       `json:"trainingAdvice"`
 }
 
 type WorkoutDay struct {

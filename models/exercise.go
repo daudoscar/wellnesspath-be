@@ -12,6 +12,7 @@ type Exercise struct {
 	GoalTag                string    `gorm:"type:varchar(100);not null"`
 	Description            string    `gorm:"type:text"`
 	StepByStepInstructions string    `gorm:"type:text"`
+	Equipment              string    `gorm:"type:varchar(255)"`
 	IsDeleted              bool      `gorm:"default:false"`
 	CreatedAt              time.Time `gorm:"autoCreateTime"`
 	UpdatedAt              time.Time `gorm:"autoUpdateTime"`

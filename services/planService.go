@@ -13,14 +13,12 @@ import (
 type PlanService struct{}
 
 func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, error) {
-	// Get user profile
 	profile, err := repositories.GetProfileByUserID(userID)
 	if err != nil {
 		return dto.FullPlanOutput{}, errors.New("user profile not found")
 	}
 	equipment := helpers.DecodeEquipment(profile.EquipmentJSON)
 
-	// Fetch exercises that match goal + equipment
 	exercises, err := repositories.GetExercisesByGoalAndEquipment(profile.Goal, equipment)
 	if err != nil {
 		return dto.FullPlanOutput{}, errors.New("failed to fetch matching exercises")
@@ -29,7 +27,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		return dto.FullPlanOutput{}, errors.New("no exercises match your profile")
 	}
 
-	// Create workout plan metadata
 	plan := models.WorkoutPlan{
 		UserID:    userID,
 		SplitType: profile.SplitType,
@@ -39,7 +36,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		return dto.FullPlanOutput{}, err
 	}
 
-	// Create days based on split type
 	splitFocuses := helpers.GetSplitFocuses(profile.SplitType, profile.Frequency)
 	var workoutDays []dto.WorkoutDay
 
@@ -53,8 +49,11 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 			return dto.FullPlanOutput{}, err
 		}
 
-		// Filter exercises by focus
 		focused := helpers.FilterExercisesByFocus(exercises, focus)
+		if len(focused) == 0 {
+			focused = exercises
+		}
+
 		rand.Shuffle(len(focused), func(i, j int) {
 			focused[i], focused[j] = focused[j], focused[i]
 		})
@@ -69,6 +68,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 
 		for j, ex := range selected {
 			reps := helpers.DetermineReps(profile.Intensity, profile.Goal)
+
 			planExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: ex.ID,
@@ -76,6 +76,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 				Reps:       reps,
 				Sets:       3,
 			}
+
 			if err := repositories.CreateWorkoutPlanExercise(&planExercise); err != nil {
 				return dto.FullPlanOutput{}, err
 			}
@@ -92,7 +93,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		workoutDays = append(workoutDays, dayDTO)
 	}
 
-	// Build FullPlanOutput DTO
 	output := dto.FullPlanOutput{
 		WorkoutPlan:    workoutDays,
 		TrainingAdvice: helpers.GenerateTrainingAdvice(profile),

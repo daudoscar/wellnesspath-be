@@ -10,4 +10,5 @@ type ExerciseResponseDTO struct {
 	GoalTag                string `json:"goal_tag"`
 	Description            string `json:"description"`
 	StepByStepInstructions string `json:"step_by_step_instructions"`
+	Equipment              string `json:"equipment"`
 }

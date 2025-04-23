@@ -29,7 +29,11 @@ func ConnectDatabase() {
 
 	err = DB.AutoMigrate(
 		&models.User{},
+		&models.Profile{},
 		&models.Exercise{},
+		&models.WorkoutPlan{},
+		&models.WorkoutPlanDay{},
+		&models.WorkoutPlanExercise{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database tables: %v", err)

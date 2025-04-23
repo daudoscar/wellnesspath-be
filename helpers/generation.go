@@ -98,18 +98,46 @@ func CalculateCalories(profile *models.Profile) dto.CaloriesBurned {
 	}
 }
 
-func GenerateNutrition(profile *models.Profile) dto.NutritionPlan {
-	calories := 2000.0
-	if strings.ToLower(profile.Goal) == "muscle gain" {
-		calories += 300
-	} else if strings.ToLower(profile.Goal) == "fat loss" {
-		calories -= 300
+func GenerateNutrition(profile *models.Profile) dto.DailyNutritionRecommendation {
+	// Simple BMR-like logic (Not Fix)
+	var activityMultiplier float64
+	switch profile.Intensity {
+	case "Beginner":
+		activityMultiplier = 1.3
+	case "Intermediate":
+		activityMultiplier = 1.5
+	case "Advanced":
+		activityMultiplier = 1.7
+	default:
+		activityMultiplier = 1.4
 	}
 
-	return dto.NutritionPlan{
+	calories := int(24 * profile.TargetWeight * activityMultiplier)
+	protein := profile.TargetWeight * 1.8
+
+	return dto.DailyNutritionRecommendation{
 		Calories: calories,
-		Protein:  calories * 0.3 / 4,
-		Carbs:    calories * 0.4 / 4,
-		Fats:     calories * 0.3 / 9,
+		Protein:  protein,
+	}
+}
+
+func GetBodyPartsForFocus(focus string) []string {
+	switch strings.ToLower(focus) {
+	case "push":
+		return []string{"Chest", "Shoulders", "Triceps"}
+	case "pull":
+		return []string{"Back", "Lats", "Biceps", "Forearms"}
+	case "legs":
+		return []string{"Quadriceps", "Glutes", "Hamstrings", "Calves", "Lower Back"}
+	case "upper":
+		return []string{"Chest", "Back", "Shoulders", "Biceps", "Triceps", "Forearms"}
+	case "lower":
+		return []string{"Quadriceps", "Hamstrings", "Glutes", "Calves", "Lower Back"}
+	case "full body":
+		return []string{"Chest", "Back", "Legs", "Shoulders", "Arms", "Glutes", "Core"}
+	case "chest", "back", "shoulders", "arms", "glutes", "biceps", "triceps":
+		return []string{strings.Title(focus)}
+	default:
+		return []string{}
 	}
 }
