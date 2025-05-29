@@ -22,6 +22,7 @@ type ExercisePlanResponse struct {
 	Sets       int    `json:"sets"`
 	Order      int    `json:"order"`
 	Note       string `json:"note,omitempty"`
+	ImageURL   string `json:"image_url"`
 }
 
 type ScheduledExercise struct {
