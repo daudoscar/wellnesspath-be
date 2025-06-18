@@ -1,40 +1,29 @@
 package seeder
 
 import (
-	"context"
 	"encoding/csv"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"wellnesspath/config"
 	"wellnesspath/models"
 )
 
-func SeedExercisesFromAzure() error {
+func SeedExercisesFromFile() error {
 	if config.DB == nil {
 		log.Fatal("❌ Database is not connected.")
 	}
 
-	blobName := "exercises.csv"
-	container := config.ENV.AzureContainerName
+	filePath := "exercises.csv"
 
-	downloadResp, err := config.BlobClient.DownloadStream(context.TODO(), container, blobName, nil)
+	file, err := os.Open(filePath)
 	if err != nil {
-		log.Printf("❌ Failed to download blob: %v", err)
-		return err
+		log.Fatalf("❌ Failed to open file: %v", err)
 	}
-	defer downloadResp.Body.Close()
+	defer file.Close()
 
-	body, err := ioutil.ReadAll(downloadResp.Body)
-	if err != nil {
-		log.Fatalf("❌ Failed to read blob stream: %v", err)
-	}
-
-	log.Printf("📄 Blob size: %d bytes", len(body))
-	log.Printf("🔍 First 300 characters:\n%s", string(body[:min(300, len(body))]))
-
-	reader := csv.NewReader(strings.NewReader(string(body)))
+	reader := csv.NewReader(file)
 	reader.Comma = ';'
 
 	// ✅ Skip the header row
@@ -93,11 +82,4 @@ func safeGet(record []string, index int) string {
 		return strings.TrimSpace(record[index])
 	}
 	return ""
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

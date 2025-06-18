@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"strconv"
 	"wellnesspath/helpers"
 	"wellnesspath/services"
 
@@ -41,18 +40,63 @@ func GetAllPlans(c *gin.Context) {
 	helpers.SuccessResponseWithData(c, "Workout plans retrieved successfully", plans)
 }
 
-func GetPlanByID(c *gin.Context) {
-	planID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		helpers.ValidationErrorResponse(c, "Invalid ID", "Plan ID must be a valid number")
+func GetPlanByUserID(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, errors.New("user not authenticated"))
 		return
 	}
 
-	plan, err := (&services.PlanService{}).GetPlanByID(planID)
+	userID, ok := userIDRaw.(uint64)
+	if !ok {
+		helpers.ValidationErrorResponse(c, "Invalid ID", "User ID must be a valid number")
+		return
+	}
+
+	plan, err := (&services.PlanService{}).GetPlanByUserID(userID)
 	if err != nil {
 		helpers.ErrorResponse(c, err)
 		return
 	}
 
 	helpers.SuccessResponseWithData(c, "Workout plan retrieved successfully", plan)
+}
+
+func DeletePlan(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, helpers.NewUnauthorizedError("User not authenticated"))
+		return
+	}
+
+	userID, ok := userIDRaw.(uint64)
+	if !ok {
+		helpers.ErrorResponse(c, helpers.NewBadRequestError("Invalid User ID type"))
+		return
+	}
+
+	if err := (&services.PlanService{}).DeletePlan(userID); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponse(c, "Workout plan deleted successfully")
+}
+
+func GetRecommendedReplacements(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, errors.New("user not authenticated"))
+		return
+	}
+
+	userID := userIDRaw.(uint64)
+
+	replacements, err := (&services.PlanService{}).GetRecommendedReplacements(userID)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "Recommended replacements retrieved", replacements)
 }

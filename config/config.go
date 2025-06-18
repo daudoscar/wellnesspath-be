@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -24,6 +26,7 @@ type Config struct {
 	AzureStorageKey      string
 	AzureContainerName   string
 	AzureStorageEndpoint string
+	Environment          string
 }
 
 var (
@@ -65,6 +68,7 @@ func LoadConfig() *Config {
 		AzureStorageKey:      viper.GetString("AZURE_STORAGE_ACCOUNT_KEY"),
 		AzureContainerName:   viper.GetString("AZURE_STORAGE_CONTAINER_NAME"),
 		AzureStorageEndpoint: viper.GetString("AZURE_STORAGE_ENDPOINT"),
+		Environment:          viper.GetString("ENVIRONMENT"),
 	}
 
 	err = InitBlobClient()
@@ -76,16 +80,31 @@ func LoadConfig() *Config {
 }
 
 func InitBlobClient() error {
+	// 1. Inisialisasi kredensial
 	cred, err := azblob.NewSharedKeyCredential(ENV.AzureStorageAccount, ENV.AzureStorageKey)
 	if err != nil {
 		return fmt.Errorf("failed to create Azure shared key credential: %v", err)
 	}
 
+	// 2. Buat blob client
 	BlobClient, err = azblob.NewClientWithSharedKeyCredential(ENV.AzureStorageEndpoint, cred, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create blob client: %v", err)
 	}
 
 	log.Println("Azure Blob Storage client initialized successfully.")
+
+	// 3. Auto-create container jika belum ada
+	ctx := context.Background()
+	containerClient := BlobClient.ServiceClient().NewContainerClient(ENV.AzureContainerName)
+	_, err = containerClient.Create(ctx, nil)
+	if err != nil {
+		// Jika container sudah ada, abaikan error
+		if !strings.Contains(err.Error(), "ContainerAlreadyExists") {
+			return fmt.Errorf("failed to create container '%s': %v", ENV.AzureContainerName, err)
+		}
+	}
+
+	log.Printf("✅ Container '%s' is ready.\n", ENV.AzureContainerName)
 	return nil
 }

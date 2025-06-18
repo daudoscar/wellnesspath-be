@@ -68,3 +68,7 @@ func (s *UserService) GetUserByID(data dto.GetUserDTO) (dto.GetUserResponse, err
 
 	return userResponse, nil
 }
+
+func (s *UserService) DeleteUser(data dto.DeleteUserDTO) error {
+	return repositories.DeleteUserByID(data.ID)
+}

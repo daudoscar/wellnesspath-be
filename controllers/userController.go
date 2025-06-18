@@ -9,13 +9,27 @@ import (
 )
 
 func GetUserByID(c *gin.Context) {
-	var request *dto.GetUserDTO
-
-	if err := c.ShouldBind(&request); err != nil {
-		helpers.ValidationErrorResponse(c, "Invalid request", err.Error())
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, helpers.NewUnauthorizedError("User ID not found in context"))
 		return
 	}
 
+	userID, ok := userIDRaw.(uint64)
+	if !ok {
+		helpers.ErrorResponse(c, helpers.NewBadRequestError("Invalid User ID type"))
+		return
+	}
+
+	request := dto.GetUserDTO{ID: userID}
+
+	userResponse, err := (&services.UserService{}).GetUserByID(request)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "User fetched successfully", userResponse)
 }
 
 func UpdateUser(c *gin.Context) {
@@ -38,4 +52,27 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	helpers.SuccessResponseWithData(c, "User updated successfully", userResponse)
+}
+
+func DeleteUser(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, helpers.NewUnauthorizedError("User ID not found in context"))
+		return
+	}
+
+	userID, ok := userIDRaw.(uint64)
+	if !ok {
+		helpers.ErrorResponse(c, helpers.NewBadRequestError("Invalid User ID type"))
+		return
+	}
+
+	request := dto.DeleteUserDTO{ID: userID}
+
+	if err := (&services.UserService{}).DeleteUser(request); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponse(c, "User deleted successfully")
 }

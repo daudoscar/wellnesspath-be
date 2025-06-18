@@ -64,3 +64,30 @@ func TestBlobStorageConnection() error {
 	log.Println("✅ Azure Blob Storage connection successful.")
 	return nil
 }
+
+func ResetEntireDatabase() {
+	tables := []string{
+		"workout_plan_exercises",
+		"workout_plan_days",
+		"workout_plans",
+		"profiles",
+		"exercises",
+		"users",
+	}
+
+	for _, table := range tables {
+		// Clear data
+		if err := DB.Exec("DELETE FROM " + table + ";").Error; err != nil {
+			log.Printf("❌ Failed to delete from %s: %v", table, err)
+		} else {
+			log.Printf("✅ Deleted from table: %s", table)
+		}
+
+		// Reset identity
+		if err := DB.Exec("DBCC CHECKIDENT ('" + table + "', RESEED, 0);").Error; err != nil {
+			log.Printf("⚠️ Failed to reseed %s: %v", table, err)
+		} else {
+			log.Printf("🔄 Reseeded identity on: %s", table)
+		}
+	}
+}

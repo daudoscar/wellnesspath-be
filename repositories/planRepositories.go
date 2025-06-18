@@ -18,17 +18,19 @@ func CreateWorkoutPlanExercise(ex *models.WorkoutPlanExercise) error {
 	return config.DB.Create(ex).Error
 }
 
+// Admin Function (Optional)
 func GetAllWorkoutPlansByUserID(userID uint64) ([]models.WorkoutPlan, error) {
 	var plans []models.WorkoutPlan
 	err := config.DB.Where("user_id = ? AND is_deleted = ?", userID, false).Find(&plans).Error
 	return plans, err
 }
 
-func GetWorkoutPlanWithDetails(planID uint64) (models.WorkoutPlan, error) {
+func GetWorkoutPlanWithDetails(userID uint64) (models.WorkoutPlan, error) {
 	var plan models.WorkoutPlan
 	err := config.DB.
 		Preload("Days.Exercises").
-		Where("id = ? AND is_deleted = ?", planID, false).
+		Where("user_id = ? AND is_deleted = ?", userID, false).
+		Order("id").
 		First(&plan).Error
 	return plan, err
 }
@@ -36,16 +38,53 @@ func GetWorkoutPlanWithDetails(planID uint64) (models.WorkoutPlan, error) {
 func GetExercisesByGoalAndEquipment(goal string, equipmentList []string) ([]models.Exercise, error) {
 	var exercises []models.Exercise
 
-	// Build base query
-	query := config.DB.Where("goal_tag = ? AND is_deleted = ?", goal, false)
+	query := config.DB.
+		Where("is_deleted = ?", false).
+		Where("LOWER(goal_tag) = ? OR LOWER(goal_tag) = ?", strings.ToLower(goal), "general fitness")
 
-	// Apply equipment filtering
 	if len(equipmentList) > 0 {
 		query = query.Where(buildEquipmentCondition(equipmentList))
 	}
 
 	err := query.Find(&exercises).Error
 	return exercises, err
+}
+
+func DeleteWorkoutPlanByUserID(userID uint64) error {
+	return config.DB.
+		Model(&models.WorkoutPlan{}).
+		Where("user_id = ? AND is_deleted = false", userID).
+		Update("is_deleted", true).Error
+}
+
+func DeleteFullWorkoutPlanByUserID(userID uint64) error {
+	var plans []models.WorkoutPlan
+	if err := config.DB.Where("user_id = ? AND is_deleted = 0", userID).Find(&plans).Error; err != nil {
+		return err
+	}
+	for _, plan := range plans {
+		if err := config.DB.Where("day_id IN (?)",
+			config.DB.Table("workout_plan_days").Select("id").Where("plan_id = ?", plan.ID),
+		).Delete(&models.WorkoutPlanExercise{}).Error; err != nil {
+			return err
+		}
+		if err := config.DB.Where("plan_id = ?", plan.ID).Delete(&models.WorkoutPlanDay{}).Error; err != nil {
+			return err
+		}
+		if err := config.DB.Model(&models.WorkoutPlan{}).Where("id = ?", plan.ID).Update("is_deleted", 1).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func GetActiveWorkoutPlanByUserID(userID uint64) (models.WorkoutPlan, error) {
+	var plan models.WorkoutPlan
+	err := config.DB.
+		Preload("Days.Exercises").
+		Where("user_id = ? AND is_deleted = ?", userID, false).
+		First(&plan).Error
+	return plan, err
 }
 
 // Helper function to build LIKE OR conditions for equipment matching
@@ -56,4 +95,22 @@ func buildEquipmentCondition(equipmentList []string) string {
 		conditions = append(conditions, "LOWER(equipment) LIKE '%"+e+"%'")
 	}
 	return strings.Join(conditions, " OR ")
+}
+
+func FindSimilarExercises(referenceEx models.Exercise, profile *models.Profile, equipment []string, maxCount int) ([]models.Exercise, error) {
+	query := config.DB.Model(&models.Exercise{}).
+		Where("id != ? AND body_part = ? AND is_deleted = ?", referenceEx.ID, referenceEx.BodyPart, false).
+		Where("difficulty <= ?", strings.ToLower(profile.Intensity)).
+		Limit(maxCount)
+
+	if len(equipment) > 0 {
+		equipCond := buildEquipmentCondition(equipment)
+		query = query.Where(equipCond)
+	}
+
+	var result []models.Exercise
+	if err := query.Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
 }

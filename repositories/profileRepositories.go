@@ -26,3 +26,10 @@ func CreateProfile(profile *models.Profile) error {
 func UpdateProfile(profile *models.Profile) error {
 	return config.DB.Save(profile).Error
 }
+
+func DeleteProfileByUserID(userID uint64) error {
+	return config.DB.
+		Model(&models.Profile{}).
+		Where("user_id = ? AND is_deleted = false", userID).
+		Update("is_deleted", true).Error
+}

@@ -73,3 +73,7 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 	profile.ID = existing.ID
 	return repositories.UpdateProfile(&profile)
 }
+
+func (s *ProfileService) DeleteProfile(userID uint64) error {
+	return repositories.DeleteProfileByUserID(userID)
+}

@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 	"wellnesspath/config"
+
+	"wellnesspath/helpers"
 	"wellnesspath/routes"
-	// seeder "wellnesspath/seeders"
 )
 
 func main() {
@@ -12,12 +13,25 @@ func main() {
 	config.LoadConfig()
 
 	// Connect to the database
-	config.ConnectDatabase()
+	if config.ENV.Environment == "Hosted" {
+		config.ConnectDatabase()
+	} else {
+		config.ConnectDatabase()
+	}
+
+	// if config.ENV.Environment != "Production" {
+	// 	config.ResetEntireDatabase()
+	// }
+
+	err := helpers.UploadDefaultImageToAzurite()
+	if err != nil {
+		log.Fatalf("❌ Upload failed: %v", err)
+	}
 
 	// Initialize router
 	router := routes.SetupRouter()
 
-	// if err := seeder.SeedExercisesFromAzure(); err != nil {
+	// if err := seeder.SeedExercisesFromFile(); err != nil {
 	// 	log.Fatal("Seeding failed:", err)
 	// }
 

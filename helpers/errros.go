@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,6 +19,16 @@ func GetErrorResponse(err error) (CustomError, int) {
 		Message: "Internal Server Error",
 	}
 
+	if strings.HasPrefix(err.Error(), "unauthorized:") {
+		errorResponse.Message = strings.TrimPrefix(err.Error(), "unauthorized:")
+		return errorResponse, http.StatusUnauthorized
+	}
+
+	if strings.HasPrefix(err.Error(), "bad_request:") {
+		errorResponse.Message = strings.TrimPrefix(err.Error(), "bad_request:")
+		return errorResponse, http.StatusBadRequest
+	}
+
 	if strings.Contains(err.Error(), "1062") {
 		errorResponse.Message = "Duplicate entry error"
 		return errorResponse, http.StatusConflict
@@ -29,6 +40,13 @@ func GetErrorResponse(err error) (CustomError, int) {
 	}
 
 	errorResponse.Message = err.Error()
-
 	return errorResponse, http.StatusInternalServerError
+}
+
+func NewUnauthorizedError(message string) error {
+	return fmt.Errorf("unauthorized: %s", message)
+}
+
+func NewBadRequestError(message string) error {
+	return fmt.Errorf("bad_request: %s", message)
 }

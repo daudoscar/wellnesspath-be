@@ -21,3 +21,7 @@ type GetUserResponse struct {
 	Username string `json:"username"`
 	Profile  string `form:"profile"`
 }
+
+type DeleteUserDTO struct {
+	ID uint64 `json:"id"`
+}

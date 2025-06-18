@@ -19,3 +19,10 @@ func UpdateUser(user *models.User) error {
 	}
 	return nil
 }
+
+func DeleteUserByID(userID uint64) error {
+	return config.DB.
+		Model(&models.User{}).
+		Where("id = ? AND is_deleted = false", userID).
+		Update("is_deleted", true).Error
+}

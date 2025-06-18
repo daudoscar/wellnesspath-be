@@ -3,7 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"strings"
 	"time"
 
 	"wellnesspath/dto"
@@ -16,25 +16,27 @@ type PlanService struct{}
 
 // GenerateWorkoutPlan creates a personalized workout plan for the user based on their profile.
 func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, error) {
-	// Fetch the user's profile data
+	// Ambil profil user
 	profile, err := repositories.GetProfileByUserID(userID)
 	if err != nil {
 		return dto.FullPlanOutput{}, errors.New("user profile not found")
 	}
 
-	// Prevent duplicate plans: check if the user already has a workout plan
-	// existingPlans, err := repositories.GetAllWorkoutPlansByUserID(userID)
-	// if err != nil {
-	// 	return dto.FullPlanOutput{}, errors.New("failed to check existing workout plans")
-	// }
-	// if len(existingPlans) > 0 {
-	// 	return dto.FullPlanOutput{}, errors.New("user already has a workout plan")
-	// }
+	// Cek apakah user sudah memiliki workout plan aktif
+	existingPlans, err := repositories.GetAllWorkoutPlansByUserID(userID)
+	if err != nil {
+		return dto.FullPlanOutput{}, fmt.Errorf("failed to check existing workout plans: %w", err)
+	}
+	if len(existingPlans) > 0 {
+		if err := repositories.DeleteFullWorkoutPlanByUserID(userID); err != nil {
+			return dto.FullPlanOutput{}, fmt.Errorf("failed to delete existing workout plans: %w", err)
+		}
+	}
 
-	// Decode user's equipment preferences from JSON
+	// Decode equipment user
 	equipment := helpers.DecodeEquipment(profile.EquipmentJSON)
 
-	// Get exercises matching user's goal and available equipment
+	// Ambil semua exercise yang sesuai goal dan equipment
 	exercises, err := repositories.GetExercisesByGoalAndEquipment(profile.Goal, equipment)
 	if err != nil {
 		return dto.FullPlanOutput{}, errors.New("failed to fetch matching exercises")
@@ -43,7 +45,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		return dto.FullPlanOutput{}, errors.New("no exercises match your profile")
 	}
 
-	// Create the base workout plan entry
+	// Buat entri utama workout plan
 	plan := models.WorkoutPlan{
 		UserID:    userID,
 		SplitType: profile.SplitType,
@@ -53,14 +55,12 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		return dto.FullPlanOutput{}, err
 	}
 
-	// Get muscle group focus for each day based on the chosen split
+	// Tentukan fokus setiap hari (Push, Pull, Legs, dst)
 	splitFocuses := helpers.GetSplitFocuses(profile.SplitType, profile.Frequency)
+	var workoutDays []dto.WorkoutDay
 
-	var workoutDays []dto.WorkoutDay // Used for output
-
-	// Generate each day of the plan
 	for i, focus := range splitFocuses {
-		// Create workout plan day entry
+		// Buat entry WorkoutPlanDay
 		day := models.WorkoutPlanDay{
 			PlanID:    plan.ID,
 			DayNumber: i + 1,
@@ -70,31 +70,58 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 			return dto.FullPlanOutput{}, err
 		}
 
-		// Filter exercises for this day's focus (e.g. chest, legs)
+		// Filter exercise sesuai fokus hari ini
 		focused := helpers.FilterExercisesByFocus(exercises, focus)
 		if len(focused) == 0 {
-			focused = exercises // fallback if no specific match
+			focused = exercises // fallback jika tidak ada yang match
 		}
 
-		// [UPDATE LATER] Randomly select up to 4 exercises
-		rand.Shuffle(len(focused), func(i, j int) {
-			focused[i], focused[j] = focused[j], focused[i]
-		})
-		selected := focused
-		if len(focused) > 4 {
-			selected = focused[:4]
+		// Pilih latihan secara terstruktur
+		selected := helpers.SelectTailoredExercises(focused, profile, focus, 4)
+
+		// Fallback 1: Goal diganti "General Fitness"
+		if len(selected) == 0 {
+			altProfile := *profile
+			altProfile.Goal = "General Fitness"
+			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
 		}
 
-		// Build DTO for the current day
+		// Fallback 2: Turunkan batas difficulty (contoh: Beginner → Intermediate)
+		if len(selected) == 0 && strings.ToLower(profile.Intensity) == "beginner" {
+			altProfile := *profile
+			altProfile.Intensity = "Intermediate"
+			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
+		}
+
+		// Fallback 3: Ambil berdasarkan body part saja
+		if len(selected) == 0 {
+			validParts := helpers.GetBodyPartsForFocus(focus)
+			selected = []models.Exercise{}
+			seen := map[uint64]bool{}
+			for _, ex := range focused {
+				if helpers.Contains(validParts, ex.BodyPart) && !seen[ex.ID] {
+					selected = append(selected, ex)
+					seen[ex.ID] = true
+					if len(selected) == 4 {
+						break
+					}
+				}
+			}
+		}
+
+		// Fallback gagal total
+		if len(selected) == 0 {
+			return dto.FullPlanOutput{}, fmt.Errorf("no suitable exercises found for focus %s", focus)
+		}
+
+		// Build response per hari
 		var dayDTO dto.WorkoutDay
 		dayDTO.DayNumber = i + 1
 		dayDTO.Focus = focus
 
-		// Create exercises for this day in the plan
 		for j, ex := range selected {
 			reps := helpers.DetermineReps(profile.Intensity, profile.Goal)
 
-			// Create the plan exercise in the database
 			planExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: ex.ID,
@@ -106,14 +133,12 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 				return dto.FullPlanOutput{}, err
 			}
 
-			// Generate SAS URL for the exercise image
 			blobName := "picture/image_" + fmt.Sprint(ex.ID) + ".jpg"
 			imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
 			if err != nil {
 				return dto.FullPlanOutput{}, fmt.Errorf("failed to generate SAS URL for image %s: %w", blobName, err)
 			}
 
-			// Append the exercise to the day's DTO
 			dayDTO.Exercises = append(dayDTO.Exercises, dto.ExercisePlanResponse{
 				ExerciseID: ex.ID,
 				Name:       ex.Name,
@@ -127,7 +152,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		workoutDays = append(workoutDays, dayDTO)
 	}
 
-	// Final full plan output containing all days + extra info
+	// Build output akhir
 	output := dto.FullPlanOutput{
 		WorkoutPlan:    workoutDays,
 		TrainingAdvice: helpers.GenerateTrainingAdvice(profile),
@@ -145,6 +170,107 @@ func (s *PlanService) GetAllPlans(userID uint64) ([]models.WorkoutPlan, error) {
 }
 
 // GetPlanByID fetches a specific workout plan and its detailed days & exercises
-func (s *PlanService) GetPlanByID(planID uint64) (models.WorkoutPlan, error) {
-	return repositories.GetWorkoutPlanWithDetails(planID)
+func (s *PlanService) GetPlanByUserID(userID uint64) (dto.FullPlanOutput, error) {
+	// Ambil workout plan aktif milik user
+	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
+	if err != nil {
+		return dto.FullPlanOutput{}, fmt.Errorf("failed to retrieve workout plan: %w", err)
+	}
+
+	// Ambil profil user (untuk info BMI, kalori, saran, dll.)
+	profile, err := repositories.GetProfileByUserID(userID)
+	if err != nil {
+		return dto.FullPlanOutput{}, fmt.Errorf("failed to retrieve profile: %w", err)
+	}
+
+	var workoutDays []dto.WorkoutDay
+
+	for _, day := range plan.Days {
+		var dayDTO dto.WorkoutDay
+		dayDTO.DayNumber = day.DayNumber
+		dayDTO.Focus = day.Focus
+
+		for _, ex := range day.Exercises {
+			exerciseDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
+			if err != nil {
+				continue // skip if missing
+			}
+
+			blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
+			imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
+			if err != nil {
+				imageURL = ""
+			}
+
+			dayDTO.Exercises = append(dayDTO.Exercises, dto.ExercisePlanResponse{
+				ExerciseID: ex.ExerciseID,
+				Name:       exerciseDetail.Name,
+				Reps:       ex.Reps,
+				Sets:       ex.Sets,
+				Order:      ex.Order,
+				ImageURL:   imageURL,
+			})
+		}
+
+		workoutDays = append(workoutDays, dayDTO)
+	}
+
+	output := dto.FullPlanOutput{
+		WorkoutPlan:    workoutDays,
+		TrainingAdvice: helpers.GenerateTrainingAdvice(profile),
+		BMIInfo:        helpers.BuildBMIInfo(profile.BMI, profile.BMICategory),
+		CaloriesBurned: helpers.CalculateCalories(profile),
+		NutritionPlan:  helpers.GenerateNutrition(profile),
+	}
+
+	return output, nil
+}
+
+func (s *PlanService) DeletePlan(userID uint64) error {
+	return repositories.DeleteWorkoutPlanByUserID(userID)
+}
+
+func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseReplacementResponse, error) {
+	profile, err := repositories.GetProfileByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	equipment := helpers.NormalizeEquipment(profile.EquipmentJSON)
+
+	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []dto.ExerciseReplacementResponse
+	for _, day := range plan.Days {
+		for _, ex := range day.Exercises {
+			exDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
+			if err != nil {
+				continue
+			}
+
+			similar, err := repositories.FindSimilarExercises(*exDetail, profile, equipment, 3)
+			if err != nil {
+				continue
+			}
+
+			var recs []dto.RecommendedExerciseBrief
+			for _, s := range similar {
+				recs = append(recs, dto.RecommendedExerciseBrief{
+					ExerciseID:  s.ID,
+					Name:        s.Name,
+					Description: s.Description, // assuming `models.Exercise` has this field
+				})
+			}
+
+			results = append(results, dto.ExerciseReplacementResponse{
+				OriginalExerciseID: ex.ExerciseID,
+				Name:               exDetail.Name,
+				Replacements:       recs,
+			})
+		}
+	}
+
+	return results, nil
 }

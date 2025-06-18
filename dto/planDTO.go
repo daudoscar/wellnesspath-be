@@ -51,3 +51,21 @@ type NutritionPlan struct {
 	Carbs    float64 `json:"carbs"`
 	Fats     float64 `json:"fats"`
 }
+
+type ReplacementExercise struct {
+	ExerciseID uint64 `json:"exerciseId"`
+	Name       string `json:"name"`
+	ImageURL   string `json:"image_url"`
+}
+
+type ExerciseReplacementResponse struct {
+	OriginalExerciseID uint64                     `json:"originalExerciseId"`
+	Name               string                     `json:"name"`
+	Replacements       []RecommendedExerciseBrief `json:"replacements"`
+}
+
+type RecommendedExerciseBrief struct {
+	ExerciseID  uint64 `json:"exerciseId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}

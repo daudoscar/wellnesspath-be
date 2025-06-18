@@ -141,3 +141,88 @@ func GetBodyPartsForFocus(focus string) []string {
 		return []string{}
 	}
 }
+
+func SelectTailoredExercises(exercises []models.Exercise, profile *models.Profile, focus string, maxCount int) []models.Exercise {
+	validParts := GetBodyPartsForFocus(focus)
+	intensityRank := map[string]int{
+		"beginner":     1,
+		"intermediate": 2,
+		"advanced":     3,
+	}
+	userRank := intensityRank[strings.ToLower(profile.Intensity)]
+
+	// Tier 1: Strict (match all: bodyPart, goal, difficulty, no dup category)
+	selected := filterWithCriteria(exercises, validParts, profile.Goal, userRank, true, true, maxCount)
+	if len(selected) >= maxCount {
+		return selected
+	}
+
+	// Tier 2: Relax goal_tag match (allow all goals)
+	selected = filterWithCriteria(exercises, validParts, profile.Goal, userRank, false, true, maxCount)
+	if len(selected) >= maxCount {
+		return selected
+	}
+
+	// Tier 3: Relax difficulty (ignore difficulty level)
+	selected = filterWithCriteria(exercises, validParts, profile.Goal, -1, false, true, maxCount)
+	if len(selected) >= maxCount {
+		return selected
+	}
+
+	// Tier 4: Relax category uniqueness
+	selected = filterWithCriteria(exercises, validParts, profile.Goal, -1, false, false, maxCount)
+	return selected
+}
+
+func filterWithCriteria(exs []models.Exercise, validParts []string, goal string, maxRank int, strictGoal bool, uniqueCategory bool, maxCount int) []models.Exercise {
+	selected := []models.Exercise{}
+	usedCategories := map[string]bool{}
+
+	for _, ex := range exs {
+		if !Contains(validParts, ex.BodyPart) {
+			continue
+		}
+
+		if maxRank != -1 {
+			intensityRank := map[string]int{
+				"beginner":     1,
+				"intermediate": 2,
+				"advanced":     3,
+			}
+			exRank, ok := intensityRank[strings.ToLower(ex.Difficulty)]
+			if !ok {
+				exRank = 3
+			}
+			if exRank > maxRank {
+				continue
+			}
+		}
+
+		if strictGoal && !strings.EqualFold(ex.GoalTag, goal) && !strings.EqualFold(ex.GoalTag, "General Fitness") {
+			continue
+		}
+
+		if uniqueCategory && usedCategories[ex.Category] {
+			continue
+		}
+
+		selected = append(selected, ex)
+		usedCategories[ex.Category] = true
+
+		if len(selected) == maxCount {
+			break
+		}
+	}
+
+	return selected
+}
+
+// Helper contains() function
+func Contains(slice []string, val string) bool {
+	for _, item := range slice {
+		if strings.EqualFold(item, val) {
+			return true
+		}
+	}
+	return false
+}

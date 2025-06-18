@@ -46,3 +46,24 @@ func UpdateProfile(c *gin.Context) {
 
 	helpers.SuccessResponse(c, "profile updated successfully")
 }
+
+func DeleteProfile(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, helpers.NewUnauthorizedError("User not authenticated"))
+		return
+	}
+
+	userID, ok := userIDRaw.(uint64)
+	if !ok {
+		helpers.ErrorResponse(c, helpers.NewBadRequestError("Invalid User ID type"))
+		return
+	}
+
+	if err := (&services.ProfileService{}).DeleteProfile(userID); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponse(c, "Profile deleted successfully")
+}

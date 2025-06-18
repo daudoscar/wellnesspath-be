@@ -19,12 +19,14 @@ func SetupRouter() *gin.Engine {
 		{
 			user.GET("", controllers.GetUserByID)
 			user.PUT("", controllers.UpdateUser)
+			user.DELETE("", controllers.DeleteUser)
 		}
 
 		profile := protected.Group("/profile")
 		{
 			profile.GET("", controllers.GetProfile)
 			profile.PUT("", controllers.UpdateProfile)
+			profile.DELETE("", controllers.DeleteProfile)
 		}
 
 		exercise := protected.Group("/exercises")
@@ -36,8 +38,9 @@ func SetupRouter() *gin.Engine {
 		plan := protected.Group("/plans")
 		{
 			plan.POST("/generate", controllers.GenerateWorkoutPlan)
-			plan.GET("", controllers.GetAllPlans)
-			plan.GET("/:id", controllers.GetPlanByID)
+			plan.GET("", controllers.GetPlanByUserID)
+			plan.DELETE("", controllers.DeletePlan)
+			plan.GET("/recommendations", controllers.GetRecommendedReplacements)
 		}
 	}
 
