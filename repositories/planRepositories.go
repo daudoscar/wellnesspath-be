@@ -114,3 +114,27 @@ func FindSimilarExercises(referenceEx models.Exercise, profile *models.Profile, 
 	}
 	return result, nil
 }
+
+func ReplaceExerciseInWorkoutPlan(userID uint64, originalExerciseID uint64, newExerciseID uint64) error {
+	var exercise models.WorkoutPlanExercise
+
+	err := config.DB.
+		Joins("JOIN workout_plan_days ON workout_plan_days.id = workout_plan_exercises.day_id").
+		Joins("JOIN workout_plans ON workout_plans.id = workout_plan_days.plan_id").
+		Where("workout_plans.user_id = ? AND workout_plans.is_deleted = false AND workout_plan_exercises.exercise_id = ?", userID, originalExerciseID).
+		First(&exercise).Error
+
+	if err != nil {
+		return err
+	}
+
+	exercise.ExerciseID = newExerciseID
+	return config.DB.Save(&exercise).Error
+}
+
+func UpdateExerciseInPlanExercise(planExerciseID uint64, newExerciseID uint64) error {
+	return config.DB.
+		Model(&models.WorkoutPlanExercise{}).
+		Where("id = ?", planExerciseID).
+		Update("exercise_id", newExerciseID).Error
+}

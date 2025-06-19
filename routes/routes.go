@@ -41,6 +41,7 @@ func SetupRouter() *gin.Engine {
 			plan.GET("", controllers.GetPlanByUserID)
 			plan.DELETE("", controllers.DeletePlan)
 			plan.GET("/recommendations", controllers.GetRecommendedReplacements)
+			plan.PUT("/replace", controllers.ReplaceExercise)
 		}
 	}
 

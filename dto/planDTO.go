@@ -69,3 +69,8 @@ type RecommendedExerciseBrief struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
+
+type ReplaceExerciseRequest struct {
+	OriginalExerciseID uint64 `json:"originalExerciseID" binding:"required"`
+	NewExerciseID      uint64 `json:"newExerciseID" binding:"required"`
+}

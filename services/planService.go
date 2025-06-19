@@ -274,3 +274,36 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 
 	return results, nil
 }
+
+// Service function for replacing exercise
+func (s *PlanService) ReplaceExercise(userID uint64, req dto.ReplaceExerciseRequest) error {
+	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
+	if err != nil {
+		return fmt.Errorf("user has no active workout plan")
+	}
+
+	found := false
+	var targetPlanExerciseID uint64
+	for _, day := range plan.Days {
+		for _, ex := range day.Exercises {
+			if ex.ExerciseID == req.OriginalExerciseID {
+				targetPlanExerciseID = ex.ID
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("original exercise not found in your plan")
+	}
+
+	err = repositories.UpdateExerciseInPlanExercise(targetPlanExerciseID, req.NewExerciseID)
+	if err != nil {
+		return fmt.Errorf("failed to update exercise: %w", err)
+	}
+
+	return nil
+}
