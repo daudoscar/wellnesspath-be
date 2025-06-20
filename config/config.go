@@ -27,6 +27,7 @@ type Config struct {
 	AzureContainerName   string
 	AzureStorageEndpoint string
 	Environment          string
+	Queue                string
 }
 
 var (
@@ -69,6 +70,7 @@ func LoadConfig() *Config {
 		AzureContainerName:   viper.GetString("AZURE_STORAGE_CONTAINER_NAME"),
 		AzureStorageEndpoint: viper.GetString("AZURE_STORAGE_ENDPOINT"),
 		Environment:          viper.GetString("ENVIRONMENT"),
+		Queue:                viper.GetString("QUEUE"),
 	}
 
 	err = InitBlobClient()

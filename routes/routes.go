@@ -9,9 +9,15 @@ import (
 
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
+
+	// Global queue middleware
+	router.Use(middleware.QueueMiddleware())
+
+	// Public routes
 	router.POST("/login", controllers.Login)
 	router.POST("/register", controllers.Register)
 
+	// Protected routes
 	protected := router.Group("/protected")
 	protected.Use(middleware.AuthenticateJWT())
 	{
