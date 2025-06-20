@@ -242,6 +242,14 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 		return nil, err
 	}
 
+	// Step 1: Gather all existing exercise IDs
+	existingExerciseIDs := make(map[uint64]bool)
+	for _, day := range plan.Days {
+		for _, ex := range day.Exercises {
+			existingExerciseIDs[ex.ExerciseID] = true
+		}
+	}
+
 	var results []dto.ExerciseReplacementResponse
 	for _, day := range plan.Days {
 		for _, ex := range day.Exercises {
@@ -250,18 +258,25 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 				continue
 			}
 
-			similar, err := repositories.FindSimilarExercises(*exDetail, profile, equipment, 3)
+			// Get more than needed in case we filter some out
+			similar, err := repositories.FindSimilarExercises(*exDetail, profile, equipment, 10)
 			if err != nil {
 				continue
 			}
 
 			var recs []dto.RecommendedExerciseBrief
 			for _, s := range similar {
+				if s.ID == ex.ExerciseID || existingExerciseIDs[s.ID] {
+					continue
+				}
 				recs = append(recs, dto.RecommendedExerciseBrief{
 					ExerciseID:  s.ID,
 					Name:        s.Name,
-					Description: s.Description, // assuming `models.Exercise` has this field
+					Description: s.Description,
 				})
+				if len(recs) >= 3 {
+					break
+				}
 			}
 
 			results = append(results, dto.ExerciseReplacementResponse{

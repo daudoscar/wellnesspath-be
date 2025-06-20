@@ -100,7 +100,6 @@ func buildEquipmentCondition(equipmentList []string) string {
 func FindSimilarExercises(referenceEx models.Exercise, profile *models.Profile, equipment []string, maxCount int) ([]models.Exercise, error) {
 	query := config.DB.Model(&models.Exercise{}).
 		Where("id != ? AND body_part = ? AND is_deleted = ?", referenceEx.ID, referenceEx.BodyPart, false).
-		Where("difficulty <= ?", strings.ToLower(profile.Intensity)).
 		Limit(maxCount)
 
 	if len(equipment) > 0 {
