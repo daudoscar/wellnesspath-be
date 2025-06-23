@@ -3,7 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
-
+	"wellnesspath/config"
 	"wellnesspath/dto"
 	"wellnesspath/helpers"
 	"wellnesspath/models"
@@ -25,8 +25,15 @@ func (s *AuthService) RegisterUser(data dto.CreateUserDTO) (dto.CredentialRespon
 		Profile:  "https://anggurproject.blob.core.windows.net/syncspend/profile/default.png",
 	}
 
-	if err := repositories.InsertUser(user); err != nil {
+	tx := config.DB.Begin()
+
+	if err := repositories.InsertUser(tx, user); err != nil {
+		tx.Rollback()
 		return dto.CredentialResponseDTO{}, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return dto.CredentialResponseDTO{}, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	accessToken, err := helpers.GenerateJWT(user.ID, user.Username)
@@ -39,27 +46,33 @@ func (s *AuthService) RegisterUser(data dto.CreateUserDTO) (dto.CredentialRespon
 		return dto.CredentialResponseDTO{}, fmt.Errorf("failed to generate refresh token: %v", err)
 	}
 
-	credentialResponse := dto.CredentialResponseDTO{
+	return dto.CredentialResponseDTO{
 		ID:           user.ID,
 		Name:         user.Name,
 		Profile:      user.Profile,
 		Username:     user.Username,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-
-	return credentialResponse, nil
+	}, nil
 }
 
 func (s *AuthService) AuthenticateUser(data dto.LoginCredentialsDTO) (dto.CredentialResponseDTO, error) {
-	user, err := repositories.GetUserByUsername(data.Username)
+	tx := config.DB.Begin()
+
+	user, err := repositories.GetUserByUsername(tx, data.Username)
 	if err != nil {
+		tx.Rollback()
 		return dto.CredentialResponseDTO{}, errors.New("user not found")
 	}
 
 	err = helpers.CheckPasswordHash(data.Password, user.Password)
 	if err != nil {
+		tx.Rollback()
 		return dto.CredentialResponseDTO{}, errors.New("invalid credentials")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return dto.CredentialResponseDTO{}, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	accessToken, err := helpers.GenerateJWT(user.ID, user.Username)
@@ -72,14 +85,12 @@ func (s *AuthService) AuthenticateUser(data dto.LoginCredentialsDTO) (dto.Creden
 		return dto.CredentialResponseDTO{}, fmt.Errorf("failed to generate refresh token: %v", err)
 	}
 
-	userResponse := dto.CredentialResponseDTO{
+	return dto.CredentialResponseDTO{
 		ID:           user.ID,
 		Name:         user.Name,
 		Profile:      user.Profile,
 		Username:     user.Username,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-
-	return userResponse, nil
+	}, nil
 }

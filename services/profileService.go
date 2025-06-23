@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"wellnesspath/config"
 	"wellnesspath/dto"
 	"wellnesspath/helpers"
 	"wellnesspath/models"
@@ -11,10 +12,15 @@ import (
 type ProfileService struct{}
 
 func (s *ProfileService) GetProfile(userID uint64) (dto.ProfileResponseDTO, error) {
-	profile, err := repositories.GetProfileByUserID(userID)
+	tx := config.DB.Begin()
+	defer tx.Rollback()
+
+	profile, err := repositories.GetProfileByUserID(tx, userID)
 	if err != nil {
 		return dto.ProfileResponseDTO{}, err
 	}
+
+	tx.Commit()
 
 	return dto.ProfileResponseDTO{
 		ID:                 profile.ID,
@@ -65,15 +71,36 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 		EquipmentJSON:      equipmentJSON,
 	}
 
-	existing, err := repositories.GetProfileByUserID(userID)
+	tx := config.DB.Begin()
+
+	existing, err := repositories.GetProfileByUserID(tx, userID)
 	if err != nil {
-		return repositories.CreateProfile(&profile)
+		if err := repositories.CreateProfile(tx, &profile); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tx.Commit()
+		return nil
 	}
 
 	profile.ID = existing.ID
-	return repositories.UpdateProfile(&profile)
+	if err := repositories.UpdateProfile(tx, &profile); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
 }
 
 func (s *ProfileService) DeleteProfile(userID uint64) error {
-	return repositories.DeleteProfileByUserID(userID)
+	tx := config.DB.Begin()
+
+	if err := repositories.DeleteProfileByUserID(tx, userID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
 }

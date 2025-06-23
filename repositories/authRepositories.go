@@ -1,23 +1,23 @@
 package repositories
 
 import (
-	"wellnesspath/config"
 	"wellnesspath/models"
+
+	"gorm.io/gorm"
 )
 
 type AuthRepository struct{}
 
-func InsertUser(user *models.User) error {
-	if err := config.DB.Create(&user).Error; err != nil {
+func InsertUser(tx *gorm.DB, user *models.User) error {
+	if err := tx.Create(&user).Error; err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func GetUserByUsername(username string) (models.User, error) {
+func GetUserByUsername(tx *gorm.DB, username string) (models.User, error) {
 	var user models.User
-	if err := config.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := tx.Where("username = ?", username).First(&user).Error; err != nil {
 		return models.User{}, err
 	}
 	return user, nil

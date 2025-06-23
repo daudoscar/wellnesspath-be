@@ -4,18 +4,20 @@ import (
 	"strings"
 	"wellnesspath/config"
 	"wellnesspath/models"
+
+	"gorm.io/gorm"
 )
 
-func CreateWorkoutPlan(plan *models.WorkoutPlan) error {
-	return config.DB.Create(plan).Error
+func CreateWorkoutPlanTx(tx *gorm.DB, plan *models.WorkoutPlan) error {
+	return tx.Create(plan).Error
 }
 
-func CreateWorkoutPlanDay(day *models.WorkoutPlanDay) error {
-	return config.DB.Create(day).Error
+func CreateWorkoutPlanDayTx(tx *gorm.DB, day *models.WorkoutPlanDay) error {
+	return tx.Create(day).Error
 }
 
-func CreateWorkoutPlanExercise(ex *models.WorkoutPlanExercise) error {
-	return config.DB.Create(ex).Error
+func CreateWorkoutPlanExerciseTx(tx *gorm.DB, ex *models.WorkoutPlanExercise) error {
+	return tx.Create(ex).Error
 }
 
 // Admin Function (Optional)
@@ -57,21 +59,21 @@ func DeleteWorkoutPlanByUserID(userID uint64) error {
 		Update("is_deleted", true).Error
 }
 
-func DeleteFullWorkoutPlanByUserID(userID uint64) error {
+func DeleteFullWorkoutPlanByUserIDTx(tx *gorm.DB, userID uint64) error {
 	var plans []models.WorkoutPlan
-	if err := config.DB.Where("user_id = ? AND is_deleted = 0", userID).Find(&plans).Error; err != nil {
+	if err := tx.Where("user_id = ? AND is_deleted = 0", userID).Find(&plans).Error; err != nil {
 		return err
 	}
 	for _, plan := range plans {
-		if err := config.DB.Where("day_id IN (?)",
-			config.DB.Table("workout_plan_days").Select("id").Where("plan_id = ?", plan.ID),
+		if err := tx.Where("day_id IN (?)",
+			tx.Table("workout_plan_days").Select("id").Where("plan_id = ?", plan.ID),
 		).Delete(&models.WorkoutPlanExercise{}).Error; err != nil {
 			return err
 		}
-		if err := config.DB.Where("plan_id = ?", plan.ID).Delete(&models.WorkoutPlanDay{}).Error; err != nil {
+		if err := tx.Where("plan_id = ?", plan.ID).Delete(&models.WorkoutPlanDay{}).Error; err != nil {
 			return err
 		}
-		if err := config.DB.Model(&models.WorkoutPlan{}).Where("id = ?", plan.ID).Update("is_deleted", 1).Error; err != nil {
+		if err := tx.Model(&models.WorkoutPlan{}).Where("id = ?", plan.ID).Update("is_deleted", 1).Error; err != nil {
 			return err
 		}
 	}
