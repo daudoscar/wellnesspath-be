@@ -16,13 +16,13 @@ func GenerateWorkoutPlan(c *gin.Context) {
 		return
 	}
 
-	planResponse, err := (&services.PlanService{}).GenerateWorkoutPlan(userID.(uint64))
+	err := (&services.PlanService{}).GenerateWorkoutPlan(userID.(uint64))
 	if err != nil {
 		helpers.ErrorResponse(c, err)
 		return
 	}
 
-	helpers.SuccessResponseWithData(c, "Workout plan generated successfully", planResponse)
+	helpers.SuccessResponse(c, "Workout plan generated successfully")
 }
 
 func GetAllPlans(c *gin.Context) {
