@@ -16,40 +16,42 @@ import (
 type PlanService struct{}
 
 // GenerateWorkoutPlan creates a personalized workout plan for the user based on their profile.
-func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, error) {
+func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 	tx := config.DB.Begin()
 
-	// Ambil profil user dalam transaksi
+	// Profil
 	profile, err := repositories.GetProfileByUserID(tx, userID)
 	if err != nil {
 		tx.Rollback()
-		return dto.FullPlanOutput{}, errors.New("user profile not found")
+		return errors.New("user profile not found")
 	}
 
+	// Hapus existing plan
 	existingPlans, err := repositories.GetAllWorkoutPlansByUserID(userID)
 	if err != nil {
 		tx.Rollback()
-		return dto.FullPlanOutput{}, fmt.Errorf("failed to check existing workout plans: %w", err)
+		return fmt.Errorf("failed to check existing workout plans: %w", err)
 	}
 	if len(existingPlans) > 0 {
 		if err := repositories.DeleteFullWorkoutPlanByUserIDTx(tx, userID); err != nil {
 			tx.Rollback()
-			return dto.FullPlanOutput{}, fmt.Errorf("failed to delete existing workout plans: %w", err)
+			return fmt.Errorf("failed to delete existing workout plans: %w", err)
 		}
 	}
 
+	// Fetch Exercises
 	equipment := helpers.DecodeEquipment(profile.EquipmentJSON)
-
 	exercises, err := repositories.GetExercisesByGoalAndEquipment(profile.Goal, equipment)
 	if err != nil {
 		tx.Rollback()
-		return dto.FullPlanOutput{}, errors.New("failed to fetch matching exercises")
+		return errors.New("failed to fetch matching exercises")
 	}
 	if len(exercises) == 0 {
 		tx.Rollback()
-		return dto.FullPlanOutput{}, errors.New("no exercises match your profile")
+		return errors.New("no exercises match your profile")
 	}
 
+	// Buat plan
 	plan := models.WorkoutPlan{
 		UserID:    userID,
 		SplitType: profile.SplitType,
@@ -57,11 +59,11 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 	}
 	if err := repositories.CreateWorkoutPlanTx(tx, &plan); err != nil {
 		tx.Rollback()
-		return dto.FullPlanOutput{}, err
+		return err
 	}
 
+	// Ambil fokus harian
 	splitFocuses := helpers.GetSplitFocuses(profile.SplitType, profile.Frequency)
-	var workoutDays []dto.WorkoutDay
 
 	for i, focus := range splitFocuses {
 		day := models.WorkoutPlanDay{
@@ -71,7 +73,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 		}
 		if err := repositories.CreateWorkoutPlanDayTx(tx, &day); err != nil {
 			tx.Rollback()
-			return dto.FullPlanOutput{}, err
+			return err
 		}
 
 		focused := helpers.FilterExercisesByFocus(exercises, focus)
@@ -110,16 +112,11 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 
 		if len(selected) == 0 {
 			tx.Rollback()
-			return dto.FullPlanOutput{}, fmt.Errorf("no suitable exercises found for focus %s", focus)
+			return fmt.Errorf("no suitable exercises found for focus %s", focus)
 		}
-
-		var dayDTO dto.WorkoutDay
-		dayDTO.DayNumber = i + 1
-		dayDTO.Focus = focus
 
 		for j, ex := range selected {
 			reps := helpers.DetermineReps(profile.Intensity, profile.Goal)
-
 			planExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: ex.ID,
@@ -129,42 +126,16 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) (dto.FullPlanOutput, er
 			}
 			if err := repositories.CreateWorkoutPlanExerciseTx(tx, &planExercise); err != nil {
 				tx.Rollback()
-				return dto.FullPlanOutput{}, err
+				return err
 			}
-
-			blobName := "picture/image_" + fmt.Sprint(ex.ID) + ".jpg"
-			imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
-			if err != nil {
-				tx.Rollback()
-				return dto.FullPlanOutput{}, fmt.Errorf("failed to generate SAS URL for image %s: %w", blobName, err)
-			}
-
-			dayDTO.Exercises = append(dayDTO.Exercises, dto.ExercisePlanResponse{
-				ExerciseID: ex.ID,
-				Name:       ex.Name,
-				Reps:       reps,
-				Sets:       3,
-				Order:      j + 1,
-				ImageURL:   imageURL,
-			})
 		}
-
-		workoutDays = append(workoutDays, dayDTO)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return dto.FullPlanOutput{}, fmt.Errorf("failed to commit transaction: %w", err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	output := dto.FullPlanOutput{
-		WorkoutPlan:    workoutDays,
-		TrainingAdvice: helpers.GenerateTrainingAdvice(profile),
-		BMIInfo:        helpers.BuildBMIInfo(profile.BMI, profile.BMICategory),
-		CaloriesBurned: helpers.CalculateCalories(profile),
-		NutritionPlan:  helpers.GenerateNutrition(profile),
-	}
-
-	return output, nil
+	return nil
 }
 
 func (s *PlanService) GetAllPlans(userID uint64) ([]models.WorkoutPlan, error) {

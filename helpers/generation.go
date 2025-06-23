@@ -30,12 +30,15 @@ func repeatSequence(pattern []string, total int) []string {
 }
 
 func FilterExercisesByFocus(exercises []models.Exercise, focus string) []models.Exercise {
+	validParts := GetBodyPartsForFocus(focus)
 	var result []models.Exercise
+
 	for _, e := range exercises {
-		if strings.EqualFold(e.BodyPart, focus) || strings.Contains(strings.ToLower(e.Category), strings.ToLower(focus)) {
+		if Contains(validParts, e.BodyPart) {
 			result = append(result, e)
 		}
 	}
+
 	return result
 }
 
@@ -75,13 +78,13 @@ func BuildBMIInfo(bmi float64, category string) dto.BMIInfo {
 func GenerateTrainingAdvice(profile *models.Profile) string {
 	switch strings.ToLower(profile.Goal) {
 	case "muscle gain":
-		return "Focus on progressive overload. Increase weights weekly."
+		return "Use moderate to heavy resistance, 8–12 reps per set, with progressive overload. Focus on compound lifts and allow adequate rest between sets (60–90 seconds)."
 	case "fat loss":
-		return "Include more HIIT or circuits. Keep rest short."
+		return "Use moderate resistance with high volume (12–15 reps), short rest intervals (30–45 seconds), and prioritize supersets or circuits to maximize calorie burn."
 	case "stamina":
-		return "Emphasize continuous movement. Minimize rest."
+		return "Train with lighter weights and high reps (15–20+), minimal rest, and maintain steady tempo to build muscular endurance."
 	default:
-		return "Stay consistent and listen to your body."
+		return "Balance strength and endurance training. Focus on proper form and consistent weekly routines."
 	}
 }
 
@@ -134,9 +137,18 @@ func GetBodyPartsForFocus(focus string) []string {
 	case "lower":
 		return []string{"Quadriceps", "Hamstrings", "Glutes", "Calves", "Lower Back"}
 	case "full body":
-		return []string{"Chest", "Back", "Legs", "Shoulders", "Arms", "Glutes", "Core"}
-	case "chest", "back", "shoulders", "arms", "glutes", "biceps", "triceps":
-		return []string{strings.Title(focus)}
+		return []string{
+			"Chest", "Back", "Quadriceps", "Hamstrings", "Calves",
+			"Shoulders", "Biceps", "Triceps", "Forearms", "Glutes", "Abdominals",
+		}
+	case "chest":
+		return []string{"Chest"}
+	case "back":
+		return []string{"Back", "Lats"}
+	case "shoulders":
+		return []string{"Shoulders"}
+	case "arms":
+		return []string{"Biceps", "Triceps", "Forearms"}
 	default:
 		return []string{}
 	}
@@ -145,9 +157,9 @@ func GetBodyPartsForFocus(focus string) []string {
 func SelectTailoredExercises(exercises []models.Exercise, profile *models.Profile, focus string, maxCount int) []models.Exercise {
 	validParts := GetBodyPartsForFocus(focus)
 	intensityRank := map[string]int{
-		"beginner":     1,
-		"intermediate": 2,
-		"advanced":     3,
+		"Beginner":     1,
+		"Intermediate": 2,
+		"Advanced":     3,
 	}
 	userRank := intensityRank[strings.ToLower(profile.Intensity)]
 
@@ -164,7 +176,7 @@ func SelectTailoredExercises(exercises []models.Exercise, profile *models.Profil
 	}
 
 	// Tier 3: Relax difficulty (ignore difficulty level)
-	selected = filterWithCriteria(exercises, validParts, profile.Goal, -1, false, true, maxCount)
+	selected = filterWithCriteria(exercises, validParts, profile.Goal, -1, false, false, maxCount)
 	if len(selected) >= maxCount {
 		return selected
 	}
@@ -185,9 +197,9 @@ func filterWithCriteria(exs []models.Exercise, validParts []string, goal string,
 
 		if maxRank != -1 {
 			intensityRank := map[string]int{
-				"beginner":     1,
-				"intermediate": 2,
-				"advanced":     3,
+				"Beginner":     1,
+				"Intermediate": 2,
+				"Advanced":     3,
 			}
 			exRank, ok := intensityRank[strings.ToLower(ex.Difficulty)]
 			if !ok {

@@ -3,13 +3,20 @@ package helpers
 import "strings"
 
 var allowedSplits = []string{"Push/Pull/Legs", "Upper/Lower", "Full Body", "Bro Split"}
-var allowedGoals = []string{"Muscle Gain", "Fat Loss", "Stamina", "General Fit"}
+var allowedGoals = []string{"Muscle Gain", "Fat Loss", "Stamina", "General Fitness"}
 var allowedIntensities = []string{"Beginner", "Intermediate", "Advanced"}
 var allowedBMICategories = []string{"Underweight", "Normal", "Overweight", "Obese"}
 var allowedEquipment = []string{
-	"Body Only", "Bands", "Barbell", "Cable", "Cables", "Dumbbell", "Dumbbells",
-	"E-Z Curl Bar", "Exercise Ball", "Kettlebells", "Machine", "Medicine Ball",
-	"Weight Bench", "None", "Other",
+	"Barbell",
+	"Body Only",
+	"Cable",
+	"Dumbbell",
+	"Exercise Ball",
+	"Kettlebells",
+	"Machine",
+	"Medicine Ball",
+	"Other",
+	"Resistance Bands",
 }
 
 // Split

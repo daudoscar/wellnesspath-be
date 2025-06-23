@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"wellnesspath/config"
 	"wellnesspath/dto"
 	"wellnesspath/helpers"
@@ -51,6 +52,17 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 	}
 	if !helpers.IsValidEquipmentList(input.Equipment) {
 		return errors.New("invalid equipment list")
+	}
+
+	containsBodyOnly := false
+	for _, eq := range input.Equipment {
+		if strings.EqualFold(eq, "Body Only") {
+			containsBodyOnly = true
+			break
+		}
+	}
+	if !containsBodyOnly {
+		input.Equipment = append(input.Equipment, "Body Only")
 	}
 
 	equipmentJSON, err := helpers.EncodeEquipment(input.Equipment)
