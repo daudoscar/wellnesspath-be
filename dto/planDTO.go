@@ -2,7 +2,7 @@ package dto
 
 type FullPlanOutput struct {
 	WorkoutPlan    []WorkoutDay                 `json:"workoutPlan"`
-	Schedule       []ScheduledExercise          `json:"schedule,omitempty"` // optional future use
+	Schedule       []ScheduledExercise          `json:"schedule,omitempty"`
 	BMIInfo        BMIInfo                      `json:"bmiInfo"`
 	CaloriesBurned CaloriesBurned               `json:"caloriesBurned"`
 	NutritionPlan  DailyNutritionRecommendation `json:"nutritionPlan"`
@@ -27,7 +27,7 @@ type ExercisePlanResponse struct {
 
 type ScheduledExercise struct {
 	DayNumber int    `json:"dayNumber"`
-	Date      string `json:"date"` // e.g. "2025-04-26"
+	Date      string `json:"date"`
 	Exercise  string `json:"exercise"`
 	Reps      int    `json:"reps"`
 	Sets      int    `json:"sets"`
@@ -73,4 +73,24 @@ type RecommendedExerciseBrief struct {
 type ReplaceExerciseRequest struct {
 	OriginalExerciseID uint64 `json:"originalExerciseID" binding:"required"`
 	NewExerciseID      uint64 `json:"newExerciseID" binding:"required"`
+}
+
+type EditRepsRequest struct {
+	PlanExerciseID uint64 `json:"planExerciseId" binding:"required"`
+	NewReps        int    `json:"newReps" binding:"required,min=1,max=100"`
+}
+
+type WorkoutDayOutput struct {
+	DayNumber int                    `json:"dayNumber"`
+	Focus     string                 `json:"focus"`
+	Exercises []ExercisePlanResponse `json:"exercises"`
+}
+
+type FullDayPlanOutput struct {
+	WorkoutDay     WorkoutDay `json:"workoutDay"`
+	CaloriesBurned float64    `json:"caloriesBurned"`
+}
+
+type GetWorkoutTodayRequest struct {
+	DayID uint64 `json:"day_id" binding:"required"`
 }

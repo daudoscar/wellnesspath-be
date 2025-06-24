@@ -42,20 +42,37 @@ func FilterExercisesByFocus(exercises []models.Exercise, focus string) []models.
 	return result
 }
 
-func DetermineReps(intensity, goal string) int {
-	switch strings.ToLower(goal) {
+func DetermineReps(intensity, goal, bmiCategory string) int {
+	goal = strings.ToLower(goal)
+	intensity = strings.ToLower(intensity)
+	bmiCategory = strings.ToLower(bmiCategory)
+
+	switch goal {
 	case "muscle gain":
-		if intensity == "Beginner" {
+		switch intensity {
+		case "beginner":
 			return 10
-		} else if intensity == "Intermediate" {
+		case "intermediate":
 			return 8
-		} else {
+		default:
 			return 6
 		}
+
 	case "fat loss":
+		if bmiCategory == "overweight" || bmiCategory == "obese" {
+			return 15 // more reps, lower load
+		}
 		return 12
+
 	case "stamina":
 		return 15
+
+	case "general fitness":
+		if intensity == "beginner" || bmiCategory == "underweight" {
+			return 12
+		}
+		return 10
+
 	default:
 		return 10
 	}
@@ -99,6 +116,41 @@ func CalculateCalories(profile *models.Profile) dto.CaloriesBurned {
 		Weekly:     weekly,
 		Total:      total,
 	}
+}
+
+func getMetValueForGoalTag(goalTag string) float64 {
+	// Define MET values based on the GoalTag
+	switch goalTag {
+	case "Strength":
+		return 4.5
+	case "Fat Loss":
+		return 6.0
+	case "General Fitness":
+		return 5.0
+	case "Stamina":
+		return 7.0
+	default:
+		return 4.0
+	}
+}
+
+func CalculateTodayCalories(allGoalTags []string, userWeight float64) float64 {
+	var totalCalories float64
+
+	// Iterate through all GoalTags
+	for _, goalTag := range allGoalTags {
+		// Get the MET value for the goalTag
+		metValue := getMetValueForGoalTag(goalTag)
+
+		// Calculate calories burned for this GoalTag using a constant time-based factor (e.g., 1 hour)
+		// Assuming the exercise lasts for 1 hour
+		caloriesBurned := metValue * userWeight // assuming it's per hour
+
+		// Add to total calories
+		totalCalories += caloriesBurned
+	}
+
+	return totalCalories
 }
 
 func GenerateNutrition(profile *models.Profile) dto.DailyNutritionRecommendation {

@@ -123,3 +123,47 @@ func ReplaceExercise(c *gin.Context) {
 
 	helpers.SuccessResponse(c, "Exercise replaced successfully")
 }
+
+func UpdateExerciseReps(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, errors.New("user not authenticated"))
+		return
+	}
+
+	var req dto.EditRepsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.ValidationErrorResponse(c, "Invalid request body", err.Error())
+		return
+	}
+
+	err := (&services.PlanService{}).EditReps(userID.(uint64), req)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponse(c, "Reps updated successfully")
+}
+
+func GetWorkoutToday(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, errors.New("user not authenticated"))
+		return
+	}
+
+	var req dto.GetWorkoutTodayRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.ValidationErrorResponse(c, "Invalid request body", err.Error())
+		return
+	}
+
+	plan, err := (&services.PlanService{}).GetWorkoutToday(userID.(uint64), req.DayID)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "Workout for today fetched successfully", plan)
+}

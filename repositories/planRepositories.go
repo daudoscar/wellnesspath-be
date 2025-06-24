@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"strings"
 	"wellnesspath/config"
 	"wellnesspath/models"
@@ -52,8 +53,8 @@ func GetExercisesByGoalAndEquipment(goal string, equipmentList []string) ([]mode
 	return exercises, err
 }
 
-func DeleteWorkoutPlanByUserID(userID uint64) error {
-	return config.DB.
+func DeleteWorkoutPlanByUserID(tx *gorm.DB, userID uint64) error {
+	return tx.
 		Model(&models.WorkoutPlan{}).
 		Where("user_id = ? AND is_deleted = false", userID).
 		Update("is_deleted", true).Error
@@ -89,7 +90,7 @@ func GetActiveWorkoutPlanByUserID(userID uint64) (models.WorkoutPlan, error) {
 	return plan, err
 }
 
-// Helper function to build LIKE OR conditions for equipment matching
+// HELPER Function
 func buildEquipmentCondition(equipmentList []string) string {
 	var conditions []string
 	for _, e := range equipmentList {
@@ -116,26 +117,38 @@ func FindSimilarExercises(referenceEx models.Exercise, profile *models.Profile, 
 	return result, nil
 }
 
-func ReplaceExerciseInWorkoutPlan(userID uint64, originalExerciseID uint64, newExerciseID uint64) error {
-	var exercise models.WorkoutPlanExercise
-
-	err := config.DB.
-		Joins("JOIN workout_plan_days ON workout_plan_days.id = workout_plan_exercises.day_id").
-		Joins("JOIN workout_plans ON workout_plans.id = workout_plan_days.plan_id").
-		Where("workout_plans.user_id = ? AND workout_plans.is_deleted = false AND workout_plan_exercises.exercise_id = ?", userID, originalExerciseID).
-		First(&exercise).Error
-
-	if err != nil {
-		return err
-	}
-
-	exercise.ExerciseID = newExerciseID
-	return config.DB.Save(&exercise).Error
-}
-
-func UpdateExerciseInPlanExercise(planExerciseID uint64, newExerciseID uint64) error {
-	return config.DB.
+func UpdateExerciseInPlanExercise(tx *gorm.DB, planExerciseID uint64, newExerciseID uint64) error {
+	return tx.
 		Model(&models.WorkoutPlanExercise{}).
 		Where("id = ?", planExerciseID).
 		Update("exercise_id", newExerciseID).Error
+}
+
+func UpdateWorkoutPlanExerciseReps(tx *gorm.DB, exerciseID uint64, newReps int) error {
+	err := tx.
+		Model(&models.WorkoutPlanExercise{}).
+		Where("id = ?", exerciseID).
+		Update("reps", newReps).Error
+	if err != nil {
+		return fmt.Errorf("failed to update reps: %w", err)
+	}
+	return nil
+}
+
+func GetWorkoutPlanDayByDayID(planID uint64, dayID uint64) (models.WorkoutPlanDay, error) {
+	var day models.WorkoutPlanDay
+	err := config.DB.Where("plan_id = ? AND id = ?", planID, dayID).First(&day).Error
+	if err != nil {
+		return day, fmt.Errorf("workout plan day not found")
+	}
+	return day, nil
+}
+
+func GetWorkoutPlanExerciseByDayID(dayID uint64) ([]models.WorkoutPlanExercise, error) {
+	var exercises []models.WorkoutPlanExercise
+	err := config.DB.Where("day_id = ?", dayID).Find(&exercises).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch exercises for day %d", dayID)
+	}
+	return exercises, nil
 }

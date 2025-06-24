@@ -116,7 +116,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		}
 
 		for j, ex := range selected {
-			reps := helpers.DetermineReps(profile.Intensity, profile.Goal)
+			reps := helpers.DetermineReps(profile.Intensity, profile.Goal, profile.BMICategory)
 			planExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: ex.ID,
@@ -200,7 +200,17 @@ func (s *PlanService) GetPlanByUserID(userID uint64) (dto.FullPlanOutput, error)
 }
 
 func (s *PlanService) DeletePlan(userID uint64) error {
-	return repositories.DeleteWorkoutPlanByUserID(userID)
+	tx := config.DB.Begin()
+	err := repositories.DeleteWorkoutPlanByUserID(tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseReplacementResponse, error) {
@@ -262,8 +272,11 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 }
 
 func (s *PlanService) ReplaceExercise(userID uint64, req dto.ReplaceExerciseRequest) error {
+	tx := config.DB.Begin()
+
 	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("user has no active workout plan")
 	}
 
@@ -282,13 +295,127 @@ func (s *PlanService) ReplaceExercise(userID uint64, req dto.ReplaceExerciseRequ
 		}
 	}
 	if !found {
+		tx.Rollback()
 		return fmt.Errorf("original exercise not found in your plan")
 	}
-
-	err = repositories.UpdateExerciseInPlanExercise(targetPlanExerciseID, req.NewExerciseID)
+	err = repositories.UpdateExerciseInPlanExercise(tx, targetPlanExerciseID, req.NewExerciseID)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to update exercise: %w", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
+}
+
+func (s *PlanService) EditReps(userID uint64, input dto.EditRepsRequest) error {
+	tx := config.DB.Begin()
+
+	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("user has no active workout plan")
+	}
+
+	var targetPlanExerciseID uint64
+	found := false
+	for _, day := range plan.Days {
+		for _, ex := range day.Exercises {
+			if ex.ExerciseID == input.PlanExerciseID {
+				targetPlanExerciseID = ex.ID
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		tx.Rollback()
+		return fmt.Errorf("exercise not found in your plan")
+	}
+	err = repositories.UpdateWorkoutPlanExerciseReps(tx, targetPlanExerciseID, input.NewReps)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update reps for exercise: %w", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PlanService) GetWorkoutToday(userID uint64, dayID uint64) (dto.FullDayPlanOutput, error) {
+	tx := config.DB.Begin()
+
+	plan, err := repositories.GetActiveWorkoutPlanByUserID(userID)
+	if err != nil {
+		tx.Rollback()
+		return dto.FullDayPlanOutput{}, fmt.Errorf("user has no active workout plan")
+	}
+
+	var day models.WorkoutPlanDay
+	err = tx.Where("plan_id = ? AND id = ?", plan.ID, dayID).First(&day).Error
+	if err != nil {
+		tx.Rollback()
+		return dto.FullDayPlanOutput{}, fmt.Errorf("workout plan day not found")
+	}
+
+	var exercises []models.WorkoutPlanExercise
+	err = tx.Where("day_id = ?", day.ID).Find(&exercises).Error
+	if err != nil {
+		tx.Rollback()
+		return dto.FullDayPlanOutput{}, fmt.Errorf("failed to fetch exercises for the day")
+	}
+
+	var workoutDayOutput dto.WorkoutDay
+	workoutDayOutput.DayNumber = day.DayNumber
+	workoutDayOutput.Focus = day.Focus
+
+	var allGoalTags []string
+
+	for _, ex := range exercises {
+		exerciseDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
+		if err != nil {
+			continue
+		}
+
+		blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
+		imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
+		if err != nil {
+			imageURL = ""
+		}
+
+		workoutDayOutput.Exercises = append(workoutDayOutput.Exercises, dto.ExercisePlanResponse{
+			ExerciseID: ex.ExerciseID,
+			Name:       exerciseDetail.Name,
+			Reps:       ex.Reps,
+			Sets:       ex.Sets,
+			Order:      ex.Order,
+			ImageURL:   imageURL,
+		})
+
+		allGoalTags = append(allGoalTags, exerciseDetail.GoalTag)
+	}
+
+	profile, err := repositories.GetProfileByUserID(tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return dto.FullDayPlanOutput{}, fmt.Errorf("failed to retrieve profile: %w", err)
+	}
+
+	output := dto.FullDayPlanOutput{
+		WorkoutDay:     workoutDayOutput,
+		CaloriesBurned: helpers.CalculateTodayCalories(allGoalTags, profile.TargetWeight),
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return dto.FullDayPlanOutput{}, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return output, nil
 }
