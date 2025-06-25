@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"strconv"
 	"wellnesspath/dto"
 	"wellnesspath/helpers"
 	"wellnesspath/services"
@@ -153,13 +154,19 @@ func GetWorkoutToday(c *gin.Context) {
 		return
 	}
 
-	var req dto.GetWorkoutTodayRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		helpers.ValidationErrorResponse(c, "Invalid request body", err.Error())
+	dayIDStr := c.Query("dayID")
+	if dayIDStr == "" {
+		helpers.ValidationErrorResponse(c, "dayID is required", "")
 		return
 	}
 
-	plan, err := (&services.PlanService{}).GetWorkoutToday(userID.(uint64), req.DayID)
+	dayID, err := strconv.ParseUint(dayIDStr, 10, 64)
+	if err != nil {
+		helpers.ValidationErrorResponse(c, "Invalid dayID format", err.Error())
+		return
+	}
+
+	plan, err := (&services.PlanService{}).GetWorkoutToday(userID.(uint64), dayID)
 	if err != nil {
 		helpers.ErrorResponse(c, err)
 		return

@@ -90,7 +90,3 @@ type FullDayPlanOutput struct {
 	WorkoutDay     WorkoutDay `json:"workoutDay"`
 	CaloriesBurned float64    `json:"caloriesBurned"`
 }
-
-type GetWorkoutTodayRequest struct {
-	DayID uint64 `json:"day_id" binding:"required"`
-}

@@ -45,7 +45,7 @@ func SetupRouter() *gin.Engine {
 		{
 			plan.POST("/generate", controllers.GenerateWorkoutPlan)
 			plan.GET("", controllers.GetPlanByUserID)
-			plan.GET("today", controllers.GetWorkoutToday)
+			plan.GET("/today", controllers.GetWorkoutToday)
 			plan.DELETE("", controllers.DeletePlan)
 			plan.GET("/recommendations", controllers.GetRecommendedReplacements)
 			plan.PUT("/replace", controllers.ReplaceExercise)
