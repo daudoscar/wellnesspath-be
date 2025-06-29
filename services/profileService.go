@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"wellnesspath/config"
@@ -21,6 +22,11 @@ func (s *ProfileService) GetProfile(userID uint64) (dto.ProfileResponseDTO, erro
 		return dto.ProfileResponseDTO{}, err
 	}
 
+	var restDays []int
+	if err := json.Unmarshal([]byte(profile.RestDaysJSON), &restDays); err != nil {
+		restDays = []int{}
+	}
+
 	tx.Commit()
 
 	return dto.ProfileResponseDTO{
@@ -34,6 +40,7 @@ func (s *ProfileService) GetProfile(userID uint64) (dto.ProfileResponseDTO, erro
 		DurationPerSession: profile.DurationPerSession,
 		Goal:               profile.Goal,
 		Equipment:          helpers.DecodeEquipment(profile.EquipmentJSON),
+		RestDays:           restDays,
 	}, nil
 }
 
@@ -70,6 +77,11 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 		return err
 	}
 
+	restDaysJSONBytes, err := json.Marshal(input.RestDays)
+	if err != nil {
+		return err
+	}
+
 	profile := models.Profile{
 		UserID:             userID,
 		SplitType:          input.SplitType,
@@ -81,6 +93,7 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 		DurationPerSession: input.DurationPerSession,
 		Goal:               input.Goal,
 		EquipmentJSON:      equipmentJSON,
+		RestDaysJSON:       string(restDaysJSONBytes),
 	}
 
 	tx := config.DB.Begin()

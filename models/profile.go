@@ -13,7 +13,8 @@ type Profile struct {
 	Frequency          int
 	DurationPerSession int
 	Goal               string    `gorm:"type:varchar(100)"`
-	EquipmentJSON      string    `gorm:"type:text"` // manually marshal/unmarshal []string
+	EquipmentJSON      string    `gorm:"type:text"`
+	RestDaysJSON       string    `gorm:"type:text"`
 	IsDeleted          bool      `gorm:"default:false"`
 	CreatedAt          time.Time `gorm:"autoCreateTime"`
 	UpdatedAt          time.Time `gorm:"autoUpdateTime"`

@@ -10,6 +10,7 @@ type UpdateProfileDTO struct {
 	DurationPerSession int      `json:"duration_per_session"`
 	Goal               string   `json:"goal"`
 	Equipment          []string `json:"equipment"`
+	RestDays           []int    `json:"rest_days"`
 }
 
 type ProfileResponseDTO struct {
@@ -23,4 +24,5 @@ type ProfileResponseDTO struct {
 	DurationPerSession int      `json:"duration_per_session"`
 	Goal               string   `json:"goal"`
 	Equipment          []string `json:"equipment"`
+	RestDays           []int    `json:"rest_days"`
 }

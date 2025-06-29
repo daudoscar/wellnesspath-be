@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,14 +20,23 @@ type PlanService struct{}
 func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 	tx := config.DB.Begin()
 
-	// Profil
 	profile, err := repositories.GetProfileByUserID(tx, userID)
 	if err != nil {
 		tx.Rollback()
 		return errors.New("user profile not found")
 	}
 
-	// Hapus existing plan
+	var restDays []int
+	if err := json.Unmarshal([]byte(profile.RestDaysJSON), &restDays); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to parse rest days: %w", err)
+	}
+
+	if err := helpers.ValidateSplitAndRestDays(profile.SplitType, profile.Frequency, restDays); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	existingPlans, err := repositories.GetAllWorkoutPlansByUserID(userID)
 	if err != nil {
 		tx.Rollback()
@@ -39,7 +49,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		}
 	}
 
-	// Fetch Exercises
 	equipment := helpers.DecodeEquipment(profile.EquipmentJSON)
 	exercises, err := repositories.GetExercisesByGoalAndEquipment(profile.Goal, equipment)
 	if err != nil {
@@ -51,7 +60,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		return errors.New("no exercises match your profile")
 	}
 
-	// Buat plan
 	plan := models.WorkoutPlan{
 		UserID:    userID,
 		SplitType: profile.SplitType,
@@ -62,13 +70,50 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		return err
 	}
 
-	// Ambil fokus harian
 	splitFocuses := helpers.GetSplitFocuses(profile.SplitType, profile.Frequency)
 
-	for i, focus := range splitFocuses {
+	restMap := map[int]bool{}
+	for _, d := range restDays {
+		restMap[d] = true
+	}
+
+	focusIndex := 0
+	for dayNum := 1; dayNum <= 7; dayNum++ {
+		if restMap[dayNum] {
+			day := models.WorkoutPlanDay{
+				PlanID:    plan.ID,
+				DayNumber: dayNum,
+				Focus:     "Rest",
+			}
+			if err := repositories.CreateWorkoutPlanDayTx(tx, &day); err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			restExercise := models.WorkoutPlanExercise{
+				DayID:      day.ID,
+				ExerciseID: 0,
+				Order:      0,
+				Reps:       0,
+				Sets:       0,
+			}
+			if err := repositories.CreateWorkoutPlanExerciseTx(tx, &restExercise); err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			continue
+		}
+
+		if focusIndex >= len(splitFocuses) {
+			break
+		}
+		focus := splitFocuses[focusIndex]
+		focusIndex++
+
 		day := models.WorkoutPlanDay{
 			PlanID:    plan.ID,
-			DayNumber: i + 1,
+			DayNumber: dayNum,
 			Focus:     focus,
 		}
 		if err := repositories.CreateWorkoutPlanDayTx(tx, &day); err != nil {
@@ -82,19 +127,16 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		}
 
 		selected := helpers.SelectTailoredExercises(focused, profile, focus, 4)
-
 		if len(selected) == 0 {
 			altProfile := *profile
 			altProfile.Goal = "General Fitness"
 			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
 		}
-
 		if len(selected) == 0 && strings.ToLower(profile.Intensity) == "beginner" {
 			altProfile := *profile
 			altProfile.Intensity = "Intermediate"
 			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
 		}
-
 		if len(selected) == 0 {
 			validParts := helpers.GetBodyPartsForFocus(focus)
 			selected = []models.Exercise{}
@@ -109,7 +151,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 				}
 			}
 		}
-
 		if len(selected) == 0 {
 			tx.Rollback()
 			return fmt.Errorf("no suitable exercises found for focus %s", focus)
@@ -164,20 +205,31 @@ func (s *PlanService) GetPlanByUserID(userID uint64) (dto.FullPlanOutput, error)
 		dayDTO.Focus = day.Focus
 
 		for _, ex := range day.Exercises {
-			exerciseDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
-			if err != nil {
-				continue
-			}
+			var (
+				exerciseName string
+				imageURL     string
+			)
 
-			blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
-			imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
-			if err != nil {
-				imageURL = ""
+			if ex.ExerciseID == 0 {
+				exerciseName = "Rest Day"
+				imageURL = "-"
+			} else {
+				exerciseDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
+				if err != nil {
+					continue
+				}
+				exerciseName = exerciseDetail.Name
+
+				blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
+				imageURL, err = helpers.GenerateSASURL(blobName, time.Hour)
+				if err != nil {
+					imageURL = ""
+				}
 			}
 
 			dayDTO.Exercises = append(dayDTO.Exercises, dto.ExercisePlanResponse{
 				ExerciseID: ex.ExerciseID,
-				Name:       exerciseDetail.Name,
+				Name:       exerciseName,
 				Reps:       ex.Reps,
 				Sets:       ex.Sets,
 				Order:      ex.Order,

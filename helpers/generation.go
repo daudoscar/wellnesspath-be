@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"strings"
 	"wellnesspath/dto"
 	"wellnesspath/models"
@@ -289,4 +290,84 @@ func Contains(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+func ValidateSplitAndRestDays(splitType string, frequency int, restDays []int) error {
+	if len(restDays) > 7 {
+		return fmt.Errorf("invalid number of rest days (max 7)")
+	}
+
+	availableDays := 7 - len(restDays)
+	if availableDays < frequency {
+		return fmt.Errorf("not enough workout days: %d rest days leave only %d workout days, but frequency is set to %d",
+			len(restDays), availableDays, frequency)
+	}
+
+	switch normalizeSplit(splitType) {
+	case "push/pull/legs":
+		if frequency < 3 {
+			return fmt.Errorf("push/pull/legs split requires at least 3 workout days")
+		}
+		if frequency%3 != 0 {
+			return fmt.Errorf("push/pull/legs split is based on a 3-day cycle; valid frequencies are 3 or 6")
+		}
+	case "upper/lower":
+		if frequency < 2 {
+			return fmt.Errorf("upper/lower split requires at least 2 workout days")
+		}
+		if frequency%2 != 0 {
+			return fmt.Errorf("upper/lower split is based on a 2-day cycle; valid frequencies are 2, 4, or 6")
+		}
+	case "bro split":
+		if frequency != 5 {
+			return fmt.Errorf("bro split requires exactly 5 workout days")
+		}
+	case "full body":
+		if frequency < 2 {
+			return fmt.Errorf("full body split requires at least 2 sessions per week")
+		}
+		if frequency > 4 {
+			return fmt.Errorf("full body split should not exceed 4 sessions per week")
+		}
+	}
+
+	return nil
+}
+
+func GetWorkoutDays(restDays []int, frequency int) ([]int, error) {
+	var workoutDays []int
+	for i := 1; i <= 7; i++ {
+		if !ContainsInt(restDays, i) {
+			workoutDays = append(workoutDays, i)
+		}
+	}
+	if len(workoutDays) < frequency {
+		return nil, fmt.Errorf("not enough available workout days (got %d, need %d)", len(workoutDays), frequency)
+	}
+	return workoutDays[:frequency], nil
+}
+
+func ContainsInt(slice []int, val int) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeSplit(split string) string {
+	switch strings.ToLower(split) {
+	case "push/pull/legs", "upper/lower", "full body", "bro split":
+		return strings.ToLower(split)
+	default:
+		return "general"
+	}
+}
+
+func PrepareWorkoutDays(splitType string, frequency int, restDays []int) ([]int, error) {
+	if err := ValidateSplitAndRestDays(splitType, frequency, restDays); err != nil {
+		return nil, err
+	}
+	return GetWorkoutDays(restDays, frequency)
 }
