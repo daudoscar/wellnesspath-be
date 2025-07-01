@@ -126,38 +126,44 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 			focused = exercises
 		}
 
-		selected := helpers.SelectTailoredExercises(focused, profile, focus, 4)
+		reps := helpers.DetermineReps(profile.Intensity, profile.Goal, profile.BMICategory)
+		exerciseCount := helpers.CalculateMaxExercises(profile.DurationPerSession, reps)
+
+		validParts := helpers.GetBodyPartsForFocus(focus)
+		selected := helpers.FilterWithBodyPartCoverage(focused, validParts, profile.Goal, profile.Intensity, exerciseCount)
+
 		if len(selected) == 0 {
 			altProfile := *profile
 			altProfile.Goal = "General Fitness"
-			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
+			selected = helpers.FilterWithBodyPartCoverage(focused, validParts, altProfile.Goal, altProfile.Intensity, exerciseCount)
 		}
+
 		if len(selected) == 0 && strings.ToLower(profile.Intensity) == "beginner" {
 			altProfile := *profile
 			altProfile.Intensity = "Intermediate"
-			selected = helpers.SelectTailoredExercises(focused, &altProfile, focus, 4)
+			selected = helpers.FilterWithBodyPartCoverage(focused, validParts, altProfile.Goal, altProfile.Intensity, exerciseCount)
 		}
+
 		if len(selected) == 0 {
-			validParts := helpers.GetBodyPartsForFocus(focus)
 			selected = []models.Exercise{}
 			seen := map[uint64]bool{}
 			for _, ex := range focused {
 				if helpers.Contains(validParts, ex.BodyPart) && !seen[ex.ID] {
 					selected = append(selected, ex)
 					seen[ex.ID] = true
-					if len(selected) == 4 {
+					if len(selected) == exerciseCount {
 						break
 					}
 				}
 			}
 		}
+
 		if len(selected) == 0 {
 			tx.Rollback()
 			return fmt.Errorf("no suitable exercises found for focus %s", focus)
 		}
 
 		for j, ex := range selected {
-			reps := helpers.DetermineReps(profile.Intensity, profile.Goal, profile.BMICategory)
 			planExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: ex.ID,
@@ -411,7 +417,7 @@ func (s *PlanService) GetWorkoutToday(userID uint64, dayID uint64) (dto.FullDayP
 	}
 
 	var day models.WorkoutPlanDay
-	err = tx.Where("plan_id = ? AND id = ?", plan.ID, dayID).First(&day).Error
+	err = tx.Where("plan_id = ? AND day_number = ?", plan.ID, dayID).First(&day).Error
 	if err != nil {
 		tx.Rollback()
 		return dto.FullDayPlanOutput{}, fmt.Errorf("workout plan day not found")

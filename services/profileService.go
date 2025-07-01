@@ -89,7 +89,7 @@ func (s *ProfileService) UpdateProfile(userID uint64, input dto.UpdateProfileDTO
 		TargetWeight:       input.TargetWeight,
 		BMI:                input.BMI,
 		BMICategory:        input.BMICategory,
-		Frequency:          input.Frequency,
+		Frequency:          7 - len(input.RestDays),
 		DurationPerSession: input.DurationPerSession,
 		Goal:               input.Goal,
 		EquipmentJSON:      equipmentJSON,

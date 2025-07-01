@@ -282,6 +282,80 @@ func filterWithCriteria(exs []models.Exercise, validParts []string, goal string,
 	return selected
 }
 
+func FilterWithBodyPartCoverage(exs []models.Exercise, validParts []string, goal string, intensity string, maxCount int) []models.Exercise {
+	selected := []models.Exercise{}
+	usedCategories := map[string]bool{}
+	coveredParts := map[string]bool{}
+	userRank := map[string]int{"beginner": 1, "intermediate": 2, "advanced": 3}[strings.ToLower(intensity)]
+
+	tierSettings := []struct {
+		allowAnyGoal   bool
+		allowAnyLevel  bool
+		ignoreCategory bool
+	}{
+		{false, false, false},
+		{true, false, false},
+		{true, true, false},
+		{true, true, true},
+	}
+
+	for _, tier := range tierSettings {
+		selected = []models.Exercise{}
+		coveredParts = map[string]bool{}
+		usedCategories = map[string]bool{}
+
+		for _, part := range validParts {
+			for _, ex := range exs {
+				if !strings.EqualFold(ex.BodyPart, part) {
+					continue
+				}
+				if !tier.allowAnyGoal && !strings.EqualFold(ex.GoalTag, goal) && !strings.EqualFold(ex.GoalTag, "General Fitness") {
+					continue
+				}
+				if !tier.allowAnyLevel {
+					rankMap := map[string]int{"beginner": 1, "intermediate": 2, "advanced": 3}
+					exRank := rankMap[strings.ToLower(ex.Difficulty)]
+					if exRank > userRank {
+						continue
+					}
+				}
+				if !tier.ignoreCategory && usedCategories[ex.Category] {
+					continue
+				}
+
+				selected = append(selected, ex)
+				coveredParts[part] = true
+				usedCategories[ex.Category] = true
+				break
+			}
+		}
+
+		if len(selected) >= len(validParts) || len(selected) >= maxCount {
+			break
+		}
+	}
+
+	if len(selected) < maxCount {
+		for _, ex := range exs {
+			if len(selected) >= maxCount {
+				break
+			}
+			alreadyAdded := false
+			for _, sel := range selected {
+				if sel.ID == ex.ID {
+					alreadyAdded = true
+					break
+				}
+			}
+			if !alreadyAdded {
+				selected = append(selected, ex)
+			}
+		}
+	}
+
+	return selected
+}
+
 // Helper contains() function
 func Contains(slice []string, val string) bool {
 	for _, item := range slice {
@@ -370,4 +444,23 @@ func PrepareWorkoutDays(splitType string, frequency int, restDays []int) ([]int,
 		return nil, err
 	}
 	return GetWorkoutDays(restDays, frequency)
+}
+
+func CalculateMaxExercises(durationMinutes int, repsPerExercise int) int {
+	secondsPerRep := 4
+	setsPerExercise := 3
+	transitionTime := 30
+
+	exerciseTime := (repsPerExercise * secondsPerRep * setsPerExercise) + transitionTime
+
+	totalAvailable := durationMinutes * 60
+
+	maxExercises := totalAvailable / exerciseTime
+
+	if maxExercises < 2 {
+		return 2
+	} else if maxExercises > 6 {
+		return 6
+	}
+	return maxExercises
 }
