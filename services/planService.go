@@ -212,25 +212,24 @@ func (s *PlanService) GetPlanByUserID(userID uint64) (dto.FullPlanOutput, error)
 
 		for _, ex := range day.Exercises {
 			var (
-				exerciseName string
-				imageURL     string
+				exerciseName      string
+				exerciseBodyPart  string
+				exerciseEquipment string
 			)
 
 			if ex.ExerciseID == 0 {
 				exerciseName = "Rest Day"
-				imageURL = "-"
+				exerciseBodyPart = "-"
+				exerciseEquipment = "-"
+
 			} else {
 				exerciseDetail, err := repositories.GetExerciseByID(ex.ExerciseID)
 				if err != nil {
 					continue
 				}
 				exerciseName = exerciseDetail.Name
-
-				blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
-				imageURL, err = helpers.GenerateSASURL(blobName, time.Hour)
-				if err != nil {
-					imageURL = ""
-				}
+				exerciseBodyPart = exerciseDetail.BodyPart
+				exerciseEquipment = exerciseDetail.Equipment
 			}
 
 			dayDTO.Exercises = append(dayDTO.Exercises, dto.ExercisePlanResponse{
@@ -239,7 +238,8 @@ func (s *PlanService) GetPlanByUserID(userID uint64) (dto.FullPlanOutput, error)
 				Reps:       ex.Reps,
 				Sets:       ex.Sets,
 				Order:      ex.Order,
-				ImageURL:   imageURL,
+				BodyPart:   exerciseBodyPart,
+				Equipment:  exerciseEquipment,
 			})
 		}
 
@@ -430,7 +430,7 @@ func (s *PlanService) GetWorkoutToday(userID uint64, dayID uint64) (dto.FullDayP
 		return dto.FullDayPlanOutput{}, fmt.Errorf("failed to fetch exercises for the day")
 	}
 
-	var workoutDayOutput dto.WorkoutDay
+	var workoutDayOutput dto.WorkoutDayToday
 	workoutDayOutput.DayNumber = day.DayNumber
 	workoutDayOutput.Focus = day.Focus
 
@@ -448,7 +448,7 @@ func (s *PlanService) GetWorkoutToday(userID uint64, dayID uint64) (dto.FullDayP
 			imageURL = ""
 		}
 
-		workoutDayOutput.Exercises = append(workoutDayOutput.Exercises, dto.ExercisePlanResponse{
+		workoutDayOutput.Exercises = append(workoutDayOutput.Exercises, dto.ExerciseTodayResponse{
 			ExerciseID: ex.ExerciseID,
 			Name:       exerciseDetail.Name,
 			Reps:       ex.Reps,

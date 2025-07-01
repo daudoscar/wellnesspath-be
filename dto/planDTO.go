@@ -15,7 +15,24 @@ type WorkoutDay struct {
 	Exercises []ExercisePlanResponse `json:"exercises"`
 }
 
+type WorkoutDayToday struct {
+	DayNumber int                     `json:"dayNumber"`
+	Focus     string                  `json:"focus"`
+	Exercises []ExerciseTodayResponse `json:"exercises"`
+}
+
 type ExercisePlanResponse struct {
+	ExerciseID uint64 `json:"exerciseId"`
+	Name       string `json:"name"`
+	Reps       int    `json:"reps"`
+	Sets       int    `json:"sets"`
+	Order      int    `json:"order"`
+	Note       string `json:"note,omitempty"`
+	BodyPart   string `json:"body_part"`
+	Equipment  string `json:"equipment"`
+}
+
+type ExerciseTodayResponse struct {
 	ExerciseID uint64 `json:"exerciseId"`
 	Name       string `json:"name"`
 	Reps       int    `json:"reps"`
@@ -81,12 +98,12 @@ type EditRepsRequest struct {
 }
 
 type WorkoutDayOutput struct {
-	DayNumber int                    `json:"dayNumber"`
-	Focus     string                 `json:"focus"`
-	Exercises []ExercisePlanResponse `json:"exercises"`
+	DayNumber int                     `json:"dayNumber"`
+	Focus     string                  `json:"focus"`
+	Exercises []ExerciseTodayResponse `json:"exercises"`
 }
 
 type FullDayPlanOutput struct {
-	WorkoutDay     WorkoutDay `json:"workoutDay"`
-	CaloriesBurned float64    `json:"caloriesBurned"`
+	WorkoutDay     WorkoutDayToday `json:"workoutDay"`
+	CaloriesBurned float64         `json:"caloriesBurned"`
 }
