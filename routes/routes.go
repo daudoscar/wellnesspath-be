@@ -39,6 +39,7 @@ func SetupRouter() *gin.Engine {
 		{
 			exercise.GET("", controllers.GetAllExercises)
 			exercise.GET("/:id", controllers.GetExerciseByID)
+			exercise.GET("/video", controllers.GetExerciseVideo)
 		}
 
 		plan := protected.Group("/plans")

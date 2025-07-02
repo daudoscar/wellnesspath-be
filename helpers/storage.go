@@ -29,7 +29,7 @@ func GenerateSASURL(filename string, expiry time.Duration) (string, error) {
 	var blobPath string
 	switch ext {
 	case ".png", ".jpg", ".jpeg", ".gif":
-		blobPath = fmt.Sprintf("picture/%s", filename)
+		blobPath = fmt.Sprintf("images/%s", filename)
 	case ".mp4", ".mov", ".avi":
 		blobPath = fmt.Sprintf("video/%s", filename)
 	default:
@@ -38,8 +38,13 @@ func GenerateSASURL(filename string, expiry time.Duration) (string, error) {
 
 	// Fallback ke default image jika tidak ditemukan
 	if !BlobExists(filename) {
-		blobPath = "picture/default.jpg"
-		filename = "default.jpg"
+		if filename[len(filename)-3:] == "mp4" {
+			blobPath = "videos/default.mp4"
+		} else {
+			blobPath = "images/placeholder.png"
+		}
+
+		filename = "placeholder.png"
 	}
 
 	// Jika environment lokal → buat URL lokal tanpa SAS
@@ -91,7 +96,7 @@ func BlobExists(filename string) bool {
 	var blobPath string
 	switch ext {
 	case ".png", ".jpg", ".jpeg", ".gif":
-		blobPath = fmt.Sprintf("picture/%s", filename)
+		blobPath = fmt.Sprintf("images/%s", filename)
 	case ".mp4", ".mov", ".avi":
 		blobPath = fmt.Sprintf("video/%s", filename)
 	default:
@@ -139,8 +144,8 @@ func GenerateLocalSASURL(container, blobName string, expiry time.Duration) (stri
 func UploadDefaultImageToAzurite() error {
 	client := config.BlobClient
 	containerName := config.ENV.AzureContainerName
-	blobName := "picture/default.jpg"
-	localPath := filepath.Join("__blobstorage__", "picture", "default.jpg")
+	blobName := "images/default.jpg"
+	localPath := filepath.Join("__blobstorage__", "images", "default.jpg")
 
 	// Baca file dari local filesystem
 	fileContent, err := os.ReadFile(localPath)

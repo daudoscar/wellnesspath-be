@@ -22,7 +22,7 @@ func (s *AuthService) RegisterUser(data dto.CreateUserDTO) (dto.CredentialRespon
 		Name:     data.Name,
 		Username: data.Username,
 		Password: hashedPassword,
-		Profile:  "https://anggurproject.blob.core.windows.net/syncspend/profile/default.png",
+		Profile:  "https://wpstore.blob.core.windows.net/wellnesspath/images/default.png",
 	}
 
 	tx := config.DB.Begin()

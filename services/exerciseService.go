@@ -2,8 +2,11 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"wellnesspath/dto"
+	"wellnesspath/helpers"
 	"wellnesspath/repositories"
 )
 
@@ -49,5 +52,18 @@ func (s *ExerciseService) GetExerciseByID(id uint64) (dto.ExerciseResponseDTO, e
 		GoalTag:                exercise.GoalTag,
 		Description:            exercise.Description,
 		StepByStepInstructions: exercise.StepByStepInstructions,
+	}, nil
+}
+
+func (s *ExerciseService) GetExerciseVideoByID(id uint64) (dto.VideoResponseDTO, error) {
+	blobName := "video/image_" + fmt.Sprint(id) + ".mp4"
+	videoURL, err := helpers.GenerateSASURL(blobName, time.Hour)
+	if err != nil {
+		videoURL = ""
+	}
+
+	return dto.VideoResponseDTO{
+		ExerciseID: id,
+		VideoURL:   videoURL,
 	}, nil
 }

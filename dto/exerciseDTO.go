@@ -12,3 +12,8 @@ type ExerciseResponseDTO struct {
 	StepByStepInstructions string `json:"step_by_step_instructions"`
 	Equipment              string `json:"equipment"`
 }
+
+type VideoResponseDTO struct {
+	ExerciseID uint64 `json:"exercise_id"`
+	VideoURL   string `json:"video_url"`
+}

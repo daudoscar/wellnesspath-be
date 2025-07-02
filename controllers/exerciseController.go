@@ -35,3 +35,25 @@ func GetExerciseByID(c *gin.Context) {
 
 	helpers.SuccessResponseWithData(c, "exercise retrieved successfully", exercise)
 }
+
+func GetExerciseVideo(c *gin.Context) {
+	exerciseIDStr := c.Query("exerciseID")
+	if exerciseIDStr == "" {
+		helpers.ValidationErrorResponse(c, "exerciseID is required", "")
+		return
+	}
+
+	exerciseID, err := strconv.ParseUint(exerciseIDStr, 10, 64)
+	if err != nil {
+		helpers.ValidationErrorResponse(c, "Invalid exerciseID format", err.Error())
+		return
+	}
+
+	plan, err := (&services.ExerciseService{}).GetExerciseVideoByID(exerciseID)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "Workout for today fetched successfully", plan)
+}

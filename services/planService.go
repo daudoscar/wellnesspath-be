@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"wellnesspath/config"
@@ -51,11 +50,7 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 
 	equipment := helpers.DecodeEquipment(profile.EquipmentJSON)
 	exercises, err := repositories.GetExercisesByGoalAndEquipment(profile.Goal, equipment)
-	if err != nil {
-		tx.Rollback()
-		return errors.New("failed to fetch matching exercises")
-	}
-	if len(exercises) == 0 {
+	if err != nil || len(exercises) == 0 {
 		tx.Rollback()
 		return errors.New("no exercises match your profile")
 	}
@@ -77,7 +72,9 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		restMap[d] = true
 	}
 
+	usedExerciseIDs := map[uint64]bool{}
 	focusIndex := 0
+
 	for dayNum := 1; dayNum <= 7; dayNum++ {
 		if restMap[dayNum] {
 			day := models.WorkoutPlanDay{
@@ -89,7 +86,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 				tx.Rollback()
 				return err
 			}
-
 			restExercise := models.WorkoutPlanExercise{
 				DayID:      day.ID,
 				ExerciseID: 0,
@@ -101,7 +97,6 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 				tx.Rollback()
 				return err
 			}
-
 			continue
 		}
 
@@ -123,37 +118,35 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 
 		focused := helpers.FilterExercisesByFocus(exercises, focus)
 		if len(focused) == 0 {
-			focused = exercises
+			focused = exercises // fallback ke semua
 		}
 
 		reps := helpers.DetermineReps(profile.Intensity, profile.Goal, profile.BMICategory)
 		exerciseCount := helpers.CalculateMaxExercises(profile.DurationPerSession, reps)
-
 		validParts := helpers.GetBodyPartsForFocus(focus)
-		selected := helpers.FilterWithBodyPartCoverage(focused, validParts, profile.Goal, profile.Intensity, exerciseCount)
 
-		if len(selected) == 0 {
-			altProfile := *profile
-			altProfile.Goal = "General Fitness"
-			selected = helpers.FilterWithBodyPartCoverage(focused, validParts, altProfile.Goal, altProfile.Intensity, exerciseCount)
+		selected := []models.Exercise{}
+		candidate := helpers.FilterWithBodyPartCoverage(focused, validParts, profile.Goal, profile.Intensity, exerciseCount)
+
+		for _, ex := range candidate {
+			if !usedExerciseIDs[ex.ID] {
+				selected = append(selected, ex)
+				usedExerciseIDs[ex.ID] = true
+			}
+			if len(selected) == exerciseCount {
+				break
+			}
 		}
 
-		if len(selected) == 0 && strings.ToLower(profile.Intensity) == "beginner" {
-			altProfile := *profile
-			altProfile.Intensity = "Intermediate"
-			selected = helpers.FilterWithBodyPartCoverage(focused, validParts, altProfile.Goal, altProfile.Intensity, exerciseCount)
-		}
-
-		if len(selected) == 0 {
-			selected = []models.Exercise{}
-			seen := map[uint64]bool{}
+		// Fallback jika belum cukup
+		if len(selected) < exerciseCount {
 			for _, ex := range focused {
-				if helpers.Contains(validParts, ex.BodyPart) && !seen[ex.ID] {
+				if !usedExerciseIDs[ex.ID] {
 					selected = append(selected, ex)
-					seen[ex.ID] = true
-					if len(selected) == exerciseCount {
-						break
-					}
+					usedExerciseIDs[ex.ID] = true
+				}
+				if len(selected) == exerciseCount {
+					break
 				}
 			}
 		}
@@ -182,6 +175,37 @@ func (s *PlanService) GenerateWorkoutPlan(userID uint64) error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	return nil
+}
+
+func (s *PlanService) GeneratePlan(userID uint64) error {
+	tx := config.DB.Begin()
+
+	// delete existing plan if any
+	if err := repositories.DeleteFullWorkoutPlanByUserIDTx(tx, userID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	profile, err := repositories.GetProfileByUserID(tx, userID)
+	if err != nil {
+		return err
+	}
+
+	// create new plan
+	plan := models.WorkoutPlan{
+		UserID:    userID,
+		SplitType: profile.SplitType,
+		Goal:      profile.Goal,
+	}
+	if err := repositories.CreateWorkoutPlanTx(tx, &plan); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
 	return nil
 }
 

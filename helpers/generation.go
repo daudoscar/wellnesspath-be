@@ -282,73 +282,41 @@ func filterWithCriteria(exs []models.Exercise, validParts []string, goal string,
 	return selected
 }
 
-func FilterWithBodyPartCoverage(exs []models.Exercise, validParts []string, goal string, intensity string, maxCount int) []models.Exercise {
+func FilterWithBodyPartCoverage(exercises []models.Exercise, validParts []string, goal string, intensity string, count int) []models.Exercise {
+	grouped := make(map[string][]models.Exercise)
+
+	for _, ex := range exercises {
+		if Contains(validParts, ex.BodyPart) {
+			grouped[ex.BodyPart] = append(grouped[ex.BodyPart], ex)
+		}
+	}
+
 	selected := []models.Exercise{}
-	usedCategories := map[string]bool{}
-	coveredParts := map[string]bool{}
-	userRank := map[string]int{"beginner": 1, "intermediate": 2, "advanced": 3}[strings.ToLower(intensity)]
+	used := map[uint64]bool{}
 
-	tierSettings := []struct {
-		allowAnyGoal   bool
-		allowAnyLevel  bool
-		ignoreCategory bool
-	}{
-		{false, false, false},
-		{true, false, false},
-		{true, true, false},
-		{true, true, true},
-	}
-
-	for _, tier := range tierSettings {
-		selected = []models.Exercise{}
-		coveredParts = map[string]bool{}
-		usedCategories = map[string]bool{}
-
-		for _, part := range validParts {
-			for _, ex := range exs {
-				if !strings.EqualFold(ex.BodyPart, part) {
-					continue
-				}
-				if !tier.allowAnyGoal && !strings.EqualFold(ex.GoalTag, goal) && !strings.EqualFold(ex.GoalTag, "General Fitness") {
-					continue
-				}
-				if !tier.allowAnyLevel {
-					rankMap := map[string]int{"beginner": 1, "intermediate": 2, "advanced": 3}
-					exRank := rankMap[strings.ToLower(ex.Difficulty)]
-					if exRank > userRank {
-						continue
-					}
-				}
-				if !tier.ignoreCategory && usedCategories[ex.Category] {
-					continue
-				}
-
+	// Ambil 1 dari setiap grup utama (Chest, Back, etc)
+	for _, list := range grouped {
+		for _, ex := range list {
+			if !used[ex.ID] {
 				selected = append(selected, ex)
-				coveredParts[part] = true
-				usedCategories[ex.Category] = true
+				used[ex.ID] = true
+				if len(selected) >= count {
+					return selected
+				}
 				break
 			}
 		}
-
-		if len(selected) >= len(validParts) || len(selected) >= maxCount {
-			break
-		}
 	}
 
-	if len(selected) < maxCount {
-		for _, ex := range exs {
-			if len(selected) >= maxCount {
-				break
-			}
-			alreadyAdded := false
-			for _, sel := range selected {
-				if sel.ID == ex.ID {
-					alreadyAdded = true
-					break
-				}
-			}
-			if !alreadyAdded {
+	// Tambahkan sisanya jika belum cukup
+	for _, list := range grouped {
+		for _, ex := range list {
+			if !used[ex.ID] {
 				selected = append(selected, ex)
+				used[ex.ID] = true
+				if len(selected) >= count {
+					return selected
+				}
 			}
 		}
 	}
