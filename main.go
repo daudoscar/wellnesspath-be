@@ -4,8 +4,8 @@ import (
 	"log"
 	"wellnesspath/config"
 
-	"wellnesspath/helpers"
 	"wellnesspath/routes"
+	seeder "wellnesspath/seeders"
 )
 
 func main() {
@@ -19,21 +19,17 @@ func main() {
 		config.ConnectDatabase()
 	}
 
-	// if config.ENV.Environment != "Production" {
-	// 	config.ResetEntireDatabase()
-	// }
+	if config.ENV.Environment != "Production" {
 
-	err := helpers.UploadDefaultImageToAzurite()
-	if err != nil {
-		log.Fatalf("❌ Upload failed: %v", err)
+		config.ResetEntireDatabase()
+
+		if err := seeder.SeedExercisesFromFile(); err != nil {
+			log.Fatal("Seeding failed:", err)
+		}
 	}
 
 	// Initialize router
 	router := routes.SetupRouter()
-
-	// if err := seeder.SeedExercisesFromFile(); err != nil {
-	// 	log.Fatal("Seeding failed:", err)
-	// }
 
 	// Start the server using the loaded ADDR and PORT
 	log.Printf("Server is running on %s:%s", config.ENV.Addr, config.ENV.Port)
