@@ -28,24 +28,59 @@ func GenerateSASURL(filename string, expiry time.Duration) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	var blobPath string
 	switch ext {
-	case ".png", ".jpg", ".jpeg", ".gif":
-		blobPath = fmt.Sprintf("images/%s", filename)
+	case ".png", ".jpg", ".jpeg":
+		var base string
+		if ext == ".jpeg" {
+			base = filename[:len(filename)-5]
+		} else {
+			base = filename[:len(filename)-4]
+		}
+
+		blobPaths := []string{
+			fmt.Sprintf("%s.jpg", base),
+			fmt.Sprintf("%s.png", base),
+			fmt.Sprintf("%s.jpeg", base),
+		}
+
+		found := false
+		var blobfound string
+
+		for _, path := range blobPaths {
+			fmt.Printf("Checking: %s\n", path)
+			if BlobExists(path) {
+				found = true
+				blobfound = path
+				break
+			}
+		}
+
+		if found {
+			blobPath = blobfound
+		} else {
+			blobPath = "images/placeholder.png"
+			filename = "placeholder.png"
+		}
 	case ".mp4", ".mov", ".avi":
-		blobPath = fmt.Sprintf("video/%s", filename)
+		if !BlobExists(filename) {
+			blobPath = "videos/default.mp4"
+			filename = "placeholder.png"
+		} else {
+			blobPath = filename
+		}
 	default:
 		return "", fmt.Errorf("unsupported file extension: %s", ext)
 	}
 
 	// Fallback ke default image jika tidak ditemukan
-	if !BlobExists(filename) {
-		if filename[len(filename)-3:] == "mp4" {
-			blobPath = "videos/default.mp4"
-		} else {
-			blobPath = "images/placeholder.png"
-		}
+	// if !BlobExists(filename) {
+	// 	if filename[len(filename)-3:] == "mp4" {
+	// 		blobPath = "videos/default.mp4"
+	// 	} else {
+	// 		blobPath = "images/placeholder.png"
+	// 	}
 
-		filename = "placeholder.png"
-	}
+	// 	filename = "placeholder.png"
+	// }
 
 	// Jika environment lokal → buat URL lokal tanpa SAS
 	if strings.ToLower(environment) == "local" {
@@ -124,16 +159,7 @@ func BlobExists(filename string) bool {
 		return false
 	}
 
-	ext := strings.ToLower(filepath.Ext(filename))
-	var blobPath string
-	switch ext {
-	case ".png", ".jpg", ".jpeg", ".gif":
-		blobPath = fmt.Sprintf("images/%s", filename)
-	case ".mp4", ".mov", ".avi":
-		blobPath = fmt.Sprintf("video/%s", filename)
-	default:
-		return false
-	}
+	blobPath := filename
 
 	blobClient, err := blob.NewClientWithSharedKeyCredential(
 		fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s", accountName, containerName, blobPath), cred, nil)

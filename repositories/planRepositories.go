@@ -53,6 +53,13 @@ func GetExercisesByGoalAndEquipment(goal string, equipmentList []string) ([]mode
 		query = query.Where(buildEquipmentCondition(equipmentList))
 	}
 
+	query = query.Order(`
+		CASE 
+			WHEN LOWER(equipment) = 'body only' THEN 1 
+			ELSE 0 
+		END
+	`)
+
 	err := query.Find(&exercises).Error
 	return exercises, err
 }

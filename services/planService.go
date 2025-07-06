@@ -688,7 +688,7 @@ func (s *PlanService) GetWorkoutToday(userID uint64, dayID uint64) (dto.FullDayP
 			continue
 		}
 
-		blobName := "picture/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
+		blobName := "images/image_" + fmt.Sprint(ex.ExerciseID) + ".jpg"
 		imageURL, err := helpers.GenerateSASURL(blobName, time.Hour)
 		if err != nil {
 			imageURL = ""
