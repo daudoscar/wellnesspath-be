@@ -26,6 +26,56 @@ func GenerateWorkoutPlan(c *gin.Context) {
 	helpers.SuccessResponse(c, "Workout plan generated successfully")
 }
 
+// SEPERATE FUNCTION ***
+func InitializeWorkoutPlan(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		helpers.ErrorResponse(c, errors.New("user not authenticated"))
+		return
+	}
+
+	result, err := (&services.PlanService{}).InitializeWorkoutPlan(userID.(uint64))
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "Workout plan initialized successfully", result)
+}
+
+func CreateWorkoutPlanDays(c *gin.Context) {
+	var input dto.CreateDaysRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	days, err := (&services.PlanService{}).CreateWorkoutPlanDays(input)
+	if err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponseWithData(c, "Workout days created successfully", days)
+}
+
+func InsertExercisesToDays(c *gin.Context) {
+	var input dto.InsertExercisesRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	if err := (&services.PlanService{}).InsertExercisesToDays(input); err != nil {
+		helpers.ErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessResponse(c, "Exercises inserted successfully")
+}
+
+// SEPERATE FUNCTION ***
+
 func GetAllPlans(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {

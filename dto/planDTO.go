@@ -1,5 +1,7 @@
 package dto
 
+import "wellnesspath/models"
+
 type FullPlanOutput struct {
 	WorkoutPlan    []WorkoutDay                 `json:"workoutPlan"`
 	Schedule       []ScheduledExercise          `json:"schedule,omitempty"`
@@ -106,4 +108,22 @@ type WorkoutDayOutput struct {
 type FullDayPlanOutput struct {
 	WorkoutDay     WorkoutDayToday `json:"workoutDay"`
 	CaloriesBurned float64         `json:"caloriesBurned"`
+}
+
+type InitializePlanOutput struct {
+	PlanID    uint64            `json:"planId"`
+	Profile   models.Profile    `json:"profile"`
+	RestDays  []int             `json:"restDays"`
+	Exercises []models.Exercise `json:"exercises"`
+}
+
+type CreateDaysRequest struct {
+	PlanID   uint64         `json:"plan_id"`
+	RestDays []int          `json:"rest_days"`
+	Profile  models.Profile `json:"profile"`
+}
+
+type InsertExercisesRequest struct {
+	Profile models.Profile          `json:"profile"`
+	Days    []models.WorkoutPlanDay `json:"days"`
 }

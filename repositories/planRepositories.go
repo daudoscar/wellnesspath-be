@@ -21,6 +21,10 @@ func CreateWorkoutPlanExerciseTx(tx *gorm.DB, ex *models.WorkoutPlanExercise) er
 	return tx.Create(ex).Error
 }
 
+func CreateWorkoutPlanExercisesBatchTx(tx *gorm.DB, exercises []models.WorkoutPlanExercise) error {
+	return tx.Create(&exercises).Error
+}
+
 // Admin Function (Optional)
 func GetAllWorkoutPlansByUserID(userID uint64) ([]models.WorkoutPlan, error) {
 	var plans []models.WorkoutPlan
@@ -56,7 +60,7 @@ func GetExercisesByGoalAndEquipment(goal string, equipmentList []string) ([]mode
 func DeleteWorkoutPlanByUserID(tx *gorm.DB, userID uint64) error {
 	return tx.
 		Model(&models.WorkoutPlan{}).
-		Where("user_id = ? AND is_deleted = false", userID).
+		Where("user_id = ? AND is_deleted = ?", userID, false).
 		Update("is_deleted", true).Error
 }
 
@@ -108,6 +112,37 @@ func FindSimilarExercises(referenceEx models.Exercise, profile *models.Profile, 
 	if len(equipment) > 0 {
 		equipCond := buildEquipmentCondition(equipment)
 		query = query.Where(equipCond)
+	}
+
+	var result []models.Exercise
+	if err := query.Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func FindExercisesByBodyPartsAndEquipment(
+	db *gorm.DB,
+	bodyParts []string,
+	equipment []string,
+	excludeIDs []uint64,
+) ([]models.Exercise, error) {
+	query := db.Model(&models.Exercise{}).
+		Where("is_deleted = ?", false)
+
+	// Filter bodypart
+	if len(bodyParts) > 0 {
+		query = query.Where("body_part IN ?", bodyParts)
+	}
+
+	// Filter equipment
+	if len(equipment) > 0 {
+		query = query.Where("equipment IN (?)", equipment)
+	}
+
+	// Exclude existing exercise IDs
+	if len(excludeIDs) > 0 {
+		query = query.Where("id NOT IN ?", excludeIDs)
 	}
 
 	var result []models.Exercise

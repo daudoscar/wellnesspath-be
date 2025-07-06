@@ -20,3 +20,18 @@ func GetExerciseByID(id uint64) (*models.Exercise, error) {
 	}
 	return &exercise, nil
 }
+
+func GetExercisesByIDs(ids []uint64) (map[uint64]*models.Exercise, error) {
+	var exercises []models.Exercise
+	if err := config.DB.Where("id IN ?", ids).Find(&exercises).Error; err != nil {
+		return nil, err
+	}
+
+	exerciseMap := make(map[uint64]*models.Exercise)
+	for i := range exercises {
+		exercise := exercises[i]
+		exerciseMap[exercise.ID] = &exercise
+	}
+
+	return exerciseMap, nil
+}
