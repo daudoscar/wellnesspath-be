@@ -21,6 +21,11 @@ func SetupRouter() *gin.Engine {
 	protected := router.Group("/protected")
 	protected.Use(middleware.AuthenticateJWT())
 	{
+		ads := protected.Group("/ads")
+		{
+			ads.GET("", controllers.GetAds)
+		}
+
 		user := protected.Group("/user")
 		{
 			user.GET("", controllers.GetUserByID)
@@ -51,6 +56,13 @@ func SetupRouter() *gin.Engine {
 			plan.GET("/recommendations", controllers.GetRecommendedReplacements)
 			plan.PUT("/replace", controllers.ReplaceExercise)
 			plan.PUT("/updatereps", controllers.UpdateExerciseReps)
+
+			divide := plan.Group("/divide")
+			{
+				divide.POST("/init", controllers.InitializeWorkoutPlan)
+				divide.POST("/days", controllers.CreateWorkoutPlanDays)
+				divide.POST("/insert", controllers.InsertExercisesToDays)
+			}
 		}
 	}
 

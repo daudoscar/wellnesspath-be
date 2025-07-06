@@ -81,6 +81,38 @@ func GenerateSASURL(filename string, expiry time.Duration) (string, error) {
 	return url, nil
 }
 
+func GenerateSASURLAds(filename string, expiry time.Duration) (string, error) {
+	accountName := config.ENV.AzureStorageAccount
+	accountKey := config.ENV.AzureStorageKey
+	containerName := config.ENV.AzureContainerName
+
+	// Jika environment Hosted → buat SAS token valid
+	cred, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to create credentials: %w", err)
+	}
+
+	expiresOn := time.Now().UTC().Add(expiry)
+	permissions := sas.BlobPermissions{Read: true}
+
+	sasQueryParams, err := sas.BlobSignatureValues{
+		ContainerName: containerName,
+		BlobName:      filename,
+		Permissions:   permissions.String(),
+		StartTime:     time.Now().UTC(),
+		ExpiryTime:    expiresOn,
+	}.SignWithSharedKey(cred)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to sign SAS: %w", err)
+	}
+
+	url := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+		accountName, containerName, filename, sasQueryParams.Encode())
+
+	return url, nil
+}
+
 // BlobExists checks whether a blob file exists in Azure Storage
 func BlobExists(filename string) bool {
 	accountName := config.ENV.AzureStorageAccount
