@@ -522,7 +522,9 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 
 	// Cari bodypart unik
 	for _, ex := range exerciseMap {
-		bodyParts[ex.BodyPart] = struct{}{}
+		if ex != nil {
+			bodyParts[ex.BodyPart] = struct{}{}
+		}
 	}
 	var uniqueBodyParts []string
 	for bp := range bodyParts {
@@ -544,8 +546,27 @@ func (s *PlanService) GetRecommendedReplacements(userID uint64) ([]dto.ExerciseR
 	var results []dto.ExerciseReplacementResponse
 	for _, day := range plan.Days {
 		for _, ex := range day.Exercises {
-			exDetail := exerciseMap[ex.ExerciseID]
-			candidates := candidatesByBodyPart[exDetail.BodyPart]
+			exDetail, okEx := exerciseMap[ex.ExerciseID]
+			if !okEx || exDetail == nil {
+				// exercise not found, avoid panic
+				results = append(results, dto.ExerciseReplacementResponse{
+					OriginalExerciseID: ex.ExerciseID,
+					Name:               "",
+					Replacements:       []dto.RecommendedExerciseBrief{},
+				})
+				continue
+			}
+
+			candidates, ok := candidatesByBodyPart[exDetail.BodyPart]
+			if !ok || len(candidates) == 0 {
+				results = append(results, dto.ExerciseReplacementResponse{
+					OriginalExerciseID: ex.ExerciseID,
+					Name:               exDetail.Name,
+					Replacements:       []dto.RecommendedExerciseBrief{},
+				})
+				continue
+			}
+
 			var recs []dto.RecommendedExerciseBrief
 			for _, s := range candidates {
 				if s.ID == ex.ExerciseID {
